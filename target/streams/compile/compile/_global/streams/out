@@ -1,0 +1,41 @@
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/Arithmetic.scala:30:16: implicit conversion method Float2Bits should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0mThis can be achieved by adding the import clause 'import scala.language.implicitConversions'[0m
+[0m[[0m[33mwarn[0m] [0m[0mor by setting the compiler option -language:implicitConversions.[0m
+[0m[[0m[33mwarn[0m] [0m[0mSee the Scaladoc for value scala.language.implicitConversions for a discussion[0m
+[0m[[0m[33mwarn[0m] [0m[0mwhy the feature should be explicitly enabled.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def Float2Bits(x:Float):UInt = x.bits[0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/Arithmetic.scala:35:16: implicit conversion method cast should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def cast(a : T) : ArithmeticOps[T][0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/Arithmetic.scala:46:18: implicit conversion method cast should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m    implicit def cast(a: SInt) = new ArithmeticOps(a) {[0m
+[0m[[0m[33mwarn[0m] [0m[0m                 ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/Arithmetic.scala:53:18: implicit conversion method cast should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m    implicit def cast(a: UInt) = new ArithmeticOps[UInt](a) {[0m
+[0m[[0m[33mwarn[0m] [0m[0m                 ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/Arithmetic.scala:60:18: implicit conversion method cast should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m    implicit def cast(a: Float) = new ArithmeticOps[Float](a) {[0m
+[0m[[0m[33mwarn[0m] [0m[0m                 ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/FP32_Adder.scala:6:16: implicit conversion method AnyToInt should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def AnyToInt(a: Any): Int = Integer.parseInt(a.toString)[0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/FP32_Adder.scala:8:16: implicit conversion method AnyToBoolean should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def AnyToBoolean(a: Any): Boolean = a == true[0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/FP32_Adder.scala:10:16: implicit conversion method AnyToString should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def AnyToString(a: Any): String = a.toString[0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m/home/jiexxpu/ncnnAccel/hw_ncnnAccel/src/main/scala/FP32_Adder.scala:14:16: implicit conversion method BooleanToInt should be enabled[0m
+[0m[[0m[33mwarn[0m] [0m[0mby making the implicit value scala.language.implicitConversions visible.[0m
+[0m[[0m[33mwarn[0m] [0m[0m  implicit def BooleanToInt(b: Boolean): Int = if(b) 1 else 0[0m
+[0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+[0m[[0m[33mwarn[0m] [0m[0m9 warnings found[0m

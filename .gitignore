@@ -1,4 +1,6 @@
 verilog/*
-build/*
+/build/*
 .vscode/*
 .idea/*
+target/*
+!/build/Mesh/Mesh.sav

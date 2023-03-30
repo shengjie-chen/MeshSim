@@ -5,8 +5,8 @@ import chisel3.util._
 
 class PEControl extends Bundle {
   val datatype = UInt(3.W) // 001 -- INT8, 010 -- INT32, 100 -- FL32
-  val update = Bool() // Which register should be propagated (and which should be accumulated)?
-//  val sel = Bool()
+  val propagate = Bool() // propagate: Which register should be propagated (and which should be accumulated)?
+  //  val sel = Bool()
 
 }
 
@@ -28,21 +28,34 @@ class PE extends Module with pe_config {
     val ctl = Input(new PEControl)
 
     val out_a = Output(UInt(pe_data_w.W)) // ifm
+    val out_b = Output(UInt(pe_data_w.W)) // w output
     val out_d0 = Output(UInt(pe_data_w.W)) // part sum
     val out_d1 = Output(UInt(pe_data_w.W)) // part sum
   })
   assert(io.ctl.datatype === 1.U)
 
-  val b = Reg(SInt(pe_data_w.W))
+  val b = RegInit(Vec(2, SInt(pe_data_w.W)), 0.B.asTypeOf(Vec(2, SInt(pe_data_w.W))))
+
   val a0 = io.in_a(7, 0).asSInt
   val a1 = io.in_a(23, 16).asSInt
-
-  when(io.ctl.update) {
-    b := io.in_b.asSInt
+  val p = io.ctl.propagate
+  val use_index = RegInit(0.B)
+  val use_start = RegInit(0.B)
+  when(p){
+    use_start := 1.B
   }
+  when(use_start){
+    use_index := ~p
+  }
+  val use_b = Wire(SInt(pe_data_w.W))
+  use_b := b(use_index)
+  dontTouch(use_b)
+
+  b(p) := io.in_b.asSInt
+  io.out_b := b(p).asUInt
 
   io.out_a := RegNext(io.in_a)
-  io.out_d0 := RegNext(io.in_c0.asSInt + a0 * b).asUInt
-  io.out_d1 := RegNext(io.in_c1.asSInt + a1 * b).asUInt
+  io.out_d0 := RegNext(io.in_c0.asSInt + a0 * use_b).asUInt
+  io.out_d1 := RegNext(io.in_c1.asSInt + a1 * use_b).asUInt
 }
 

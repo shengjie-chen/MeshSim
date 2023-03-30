@@ -30,7 +30,7 @@ sim_vcd: verilog
 	echo $(CSRCS_VCD)
 	verilator -MMD -O2 --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
-	#gtkwave $(GEN_DIR)/$(TOPNAME).wave
+	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 
 sim_vcd_no_regen:
 	rm -rf $(OBJ_DIR) $(BIN_VCD)
@@ -39,3 +39,4 @@ sim_vcd_no_regen:
 	verilator -MMD -O2 --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
+

@@ -15,7 +15,7 @@ class Mesh() extends Module with mesh_config {
     val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
     //    val ifm_valid = Input(Bool()) // then transfer 1 block
 
-    val ofm = Vec(mesh_columns, Decoupled(new ofm_data))
+    val ofm = Vec(mesh_columns, Valid(new ofm_data))
     //    val ofm_addr =Output(Vec(mesh_columns, UInt(ofm_buffer_addr_w.W)))
     //    val ofm_valid = Output(Bool())
   })
@@ -23,50 +23,50 @@ class Mesh() extends Module with mesh_config {
   val mesh = Seq.fill(mesh_rows, mesh_columns)(Module(new PE))
   val meshT = mesh.transpose
 
+  val cnt = RegInit(0.U(32.W))
+  when(io.w.valid || cnt =/= 0.U) {
+    cnt := cnt + 1.U
+  }
+  dontTouch(cnt)
+
+  val start_cnt = RegInit(0.U(log2Up(mesh_rows).W))
+  val start = RegInit(0.B)
+  when(io.w.valid && io.w.ready && io.ifm.valid || start) {
+    start := 1.B
+    start_cnt := start_cnt + 1.U
+    when(start_cnt === (mesh_rows - 1).U) {
+      start_cnt := 0.U
+    }
+  }
+
   val w_ready = RegInit(1.B)
   val ifm_ready = RegInit(0.B)
   //  when(io.w.valid){
   //    w_ready := 1.B
   //  }
   io.w.ready := w_ready
-
-  val start_cnt = RegInit(0.U(log2Up(2 * mesh_rows).W))
-  when(io.w.valid && io.w.ready && io.ifm.valid) {
-    start_cnt := start_cnt + 1.U
-    when(start_cnt === (2 * mesh_rows -1) .U) {
-      start_cnt := 0.U
-    }
-  }
   io.ifm.ready := ifm_ready
-  when(start_cnt === mesh_rows.U) {
+  when(start_cnt === 0.U && start) {
     ifm_ready := 1.B
   }
   val ifm_handshake = io.ifm.valid && io.ifm.ready
 
-  val mesh_row0_sel = RegInit(Fill(mesh_rows - 1, 1.U(1.W)))
-  val sel0 = WireDefault(1.B)
-  mesh_row0_sel := Cat(mesh_row0_sel(mesh_rows - 2, 0), sel0)
-  when(io.w.valid && io.w.ready && io.ifm.valid) {
-    when(start_cnt < mesh_rows.U) {
-      mesh_row0_sel := 0.B
-    }
+  val propagate = RegInit(0.B)
+  when(start_cnt === (mesh_rows - 1).U) {
+    propagate := !propagate
   }
 
-  // pipeline sel across each row
+  // (pipeline propagate across each row)
   for (r <- 0 until mesh_rows) {
     for (c <- 0 until mesh_columns) {
-      if (r == 0) {
-        mesh(r)(c).io.ctl.sel := Cat(mesh_row0_sel, sel0)(c)
-      } else {
-        mesh(r)(c).io.ctl.sel := RegNext(mesh(r - 1)(c).io.ctl.sel)
-      }
+      mesh(r)(c).io.ctl.propagate := ShiftRegister(propagate, c)
     }
   }
 
   // broadcast update & datatype
   for (r <- 0 until mesh_rows) {
     for (c <- 0 until mesh_columns) {
-      mesh(r)(c).io.ctl.update := 1.B
+      //      mesh(r)(c).io.ctl.update := 1.B
       mesh(r)(c).io.ctl.datatype := 1.B
     }
   }
@@ -105,12 +105,16 @@ class Mesh() extends Module with mesh_config {
 
   val ofm_valid = RegInit(0.U((mesh_rows * 2).W))
   ofm_valid := ofm_valid ## ifm_handshake
+  for (c <- 0 until mesh_columns) {
+    io.ofm(c).valid := ofm_valid(mesh_rows + c - 1)
+  }
+
   val addr_cnt_sr = RegInit(
     Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)),
     0.B.asTypeOf(Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)))) // shift reg
-  when(ofm_valid(mesh_rows)) {
+  when(ofm_valid(mesh_rows - 1)) {
     addr_cnt_sr(0) := addr_cnt_sr(0) + 1.U
-    when(addr_cnt_sr(0) === mesh_rows.U){
+    when(addr_cnt_sr(0) === mesh_rows.U) {
       addr_cnt_sr(0) := 0.U
     }
   }
@@ -119,7 +123,6 @@ class Mesh() extends Module with mesh_config {
   }
 
   for (c <- 0 until mesh_columns) {
-    io.ofm(c).valid := ofm_valid(mesh_rows + c)
     io.ofm(c).bits.addr := addr_cnt_sr(c)
     io.ofm(c).bits.data0 := mesh(mesh_rows - 1)(c).io.out_d0
     io.ofm(c).bits.data1 := mesh(mesh_rows - 1)(c).io.out_d1

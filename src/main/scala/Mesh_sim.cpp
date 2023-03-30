@@ -8,12 +8,12 @@
 #include <stdint.h>
 #include <sys/time.h>
 using namespace std;
-#define INPUT_MAX 5
+#define INPUT_MAX 30
 #define INPUT_NUM 2
 #define MAT_SIZE 2
 
 vluint64_t main_time = 0;        // 当前仿真时间
-const vluint64_t sim_time = 10000; // 最高仿真时间 可选：100
+const vluint64_t sim_time = 200; // 最高仿真时间 可选：100
 
 VMesh *top = new VMesh;
 VerilatedVcdC *tfp = new VerilatedVcdC;
@@ -83,15 +83,31 @@ void InputInit() {
     cout << "ofm1:" << endl;
     MatPrint(ofm1[i]);
   }
+  //  printf("#################\n");
+}
+
+void Outputprint() {
+  for (int i = 0; i < INPUT_NUM; i++) {
+    cout << "************ HW RESULT " << i << " ************" << endl;
+    cout << "ofm0:" << endl;
+    MatPrint(hw_ofm0[i]);
+    MatMul(ifm1[i], w[i], ofm1[i]);
+    cout << "ofm1:" << endl;
+    MatPrint(hw_ofm1[i]);
+  }
 }
 
 void change_ifm() {
   if (input_index == INPUT_NUM) {
     top->io_ifm_bits_0 = 0;
     top->io_ifm_bits_1 = 0;
+    top->io_ifm_valid = 0;
   } else {
-    top->io_ifm_bits_0 = ifm0[input_index][ifm_row_p][0] + ifm1[input_index][ifm_row_p][0] << 16;
-    top->io_ifm_bits_1 = ifm0[input_index][ifm_row_p][1] + ifm1[input_index][ifm_row_p][1] << 16;
+    top->io_ifm_bits_0 = ifm0[input_index][ifm_row_p][0] + (ifm1[input_index][ifm_row_p][0] << 16);
+    top->io_ifm_bits_1 = ifm0[input_index][ifm_row_p][1] + (ifm1[input_index][ifm_row_p][1] << 16);
+    // printf("%x\n",ifm0[input_index][ifm_row_p][0] );
+    // printf("%x\n",top->io_ifm_bits_0 );
+    // printf("%x\n",top->io_ifm_bits_1);
     ifm_row_p++;
     if (ifm_row_p == MAT_SIZE) {
       ifm_row_p = 0;
@@ -103,9 +119,14 @@ void change_ifm() {
 void change_w() {
   if (w_index == INPUT_NUM) {
     top->io_w_bits_0 = 0;
-
+    top->io_w_bits_1 = 0;
+    top->io_w_valid = 0;
   } else {
-    top->io_w_bits_0 = w[input_index][w_row_p][0];
+    top->io_w_bits_0 = w[w_index][w_row_p][0];
+    top->io_w_bits_1 = w[w_index][w_row_p][1];
+    // printf("w[%d][%d][0]:%d\t", w_index, w_row_p, w[w_index][w_row_p][0]);
+    // printf("w[%d][%d][1]:%d\n", w_index, w_row_p, w[w_index][w_row_p][1]);
+    // printf("%x %x\n", top->io_w_bits_0, top->io_w_bits_1);
     if (w_row_p == 0) {
       w_index++;
       w_row_p = MAT_SIZE - 1;
@@ -116,14 +137,17 @@ void change_w() {
 }
 
 void check_ofm() {
+  printf("!!!!!!!!!!!!!!!!!!!!check Begin!!!!!!!!!!!!!\n");
   for (int i = 0; i < INPUT_NUM; i++) {
     for (int r = 0; r < MAT_SIZE; r++) {
       for (int c = 0; c < MAT_SIZE; c++) {
         if (ofm0[i][r][c] != hw_ofm0[i][r][c]) {
-          printf("check error: ofm0[%d]\n", i);
+          printf("check error: \ngold ofm0[%d]\n", i);
           MatPrint(ofm0[i]);
           printf("hw:\n");
           MatPrint(hw_ofm0[i]);
+          printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
+
           return;
         }
         if (ofm1[i][r][c] != hw_ofm1[i][r][c]) {
@@ -131,6 +155,8 @@ void check_ofm() {
           MatPrint(ofm1[i]);
           printf("hw:\n");
           MatPrint(hw_ofm1[i]);
+          printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
+
           return;
         }
       }
@@ -139,14 +165,21 @@ void check_ofm() {
   printf("!!!!!!!!!!!!!!!!!!!!check pass!!!!!!!!!!!!!\n");
 }
 
-void one_clock() {
+int ifm_hs_reg = 0;
+int w_hs_reg = 0;
+void update_reg() {
+  ifm_hs_reg = top->io_ifm_ready && top->io_ifm_valid;
+  w_hs_reg = top->io_w_ready && top->io_w_valid;
+}
+
+void change_input() {
   // change ifm
-  if (top->io_ifm_ready) {
+  if (ifm_hs_reg) {
     change_ifm();
   }
 
   // change w
-  if (top->io_w_ready) {
+  if (w_hs_reg) {
     change_w();
   }
 
@@ -168,13 +201,19 @@ void one_clock() {
       hw_ofm1[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data1;
       if (top->io_ofm_1_bits_addr == MAT_SIZE - 1) {
         output_index_1++;
-        if (output_index_1 == INPUT_MAX) {
+        if (output_index_1 == INPUT_NUM) {
           check_ofm();
           sim_finish = 1;
         }
       }
     }
   }
+
+  update_reg();
+}
+
+void one_clock() {
+  change_input();
 
   top->clock = 0;
   top->eval();
@@ -188,7 +227,7 @@ void one_clock() {
 }
 
 int main(int argc, char **argv, char **env) {
-  srand((unsigned)time(NULL));
+  // srand((unsigned)time(NULL));
 
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);
@@ -220,6 +259,8 @@ int main(int argc, char **argv, char **env) {
   // prepare data for 5 clock
   n = 5;
   while (n-- > 0) {
+    update_reg();
+
     top->clock = 0;
     top->eval();
     tfp->dump(main_time);
@@ -242,6 +283,7 @@ int main(int argc, char **argv, char **env) {
     one_clock();
   }
 
+  Outputprint();
   end = clock();
   int time = double(end - start) / CLOCKS_PER_SEC;
   uint64_t clock_cnt = main_time / 2;

@@ -46,7 +46,7 @@ class Mesh() extends Module with mesh_config {
   //  }
   io.w.ready := w_ready
   io.ifm.ready := ifm_ready
-  when(start_cnt === 0.U && start) {
+  when(start_cnt === (mesh_rows-1).U) {
     ifm_ready := 1.B
   }
   val ifm_handshake = io.ifm.valid && io.ifm.ready

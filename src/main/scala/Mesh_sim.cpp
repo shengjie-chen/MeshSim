@@ -8,12 +8,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 using namespace std;
-#define INPUT_MAX 30
-#define INPUT_NUM 10
-#define MAT_SIZE 2
+#include "macro.h"
 
 vluint64_t main_time = 0;        // 当前仿真时间
-const vluint64_t sim_time = 200; // 最高仿真时间 可选：100
+const vluint64_t sim_time = 300; // 最高仿真时间 可选：100
 
 VMesh *top = new VMesh;
 VerilatedVcdC *tfp = new VerilatedVcdC;
@@ -61,8 +59,6 @@ int ifm_row_p = 0;
 int w_row_p = MAT_SIZE - 1;
 int input_index = 0;
 int w_index = 0;
-int output_index_0 = 0;
-int output_index_1 = 0;
 
 void InputInit() {
   for (int i = 0; i < INPUT_NUM; i++) {
@@ -97,45 +93,6 @@ void Outputprint() {
   }
 }
 
-void change_ifm() {
-  if (input_index == INPUT_NUM) {
-    top->io_ifm_bits_0 = 0;
-    top->io_ifm_bits_1 = 0;
-    top->io_ifm_valid = 0;
-  } else {
-    top->io_ifm_bits_0 = ifm0[input_index][ifm_row_p][0] + (ifm1[input_index][ifm_row_p][0] << 16);
-    top->io_ifm_bits_1 = ifm0[input_index][ifm_row_p][1] + (ifm1[input_index][ifm_row_p][1] << 16);
-    // printf("%x\n",ifm0[input_index][ifm_row_p][0] );
-    // printf("%x\n",top->io_ifm_bits_0 );
-    // printf("%x\n",top->io_ifm_bits_1);
-    ifm_row_p++;
-    if (ifm_row_p == MAT_SIZE) {
-      ifm_row_p = 0;
-      input_index++;
-    }
-  }
-}
-
-void change_w() {
-  if (w_index == INPUT_NUM) {
-    top->io_w_bits_0 = 0;
-    top->io_w_bits_1 = 0;
-    top->io_w_valid = 0;
-  } else {
-    top->io_w_bits_0 = w[w_index][w_row_p][0];
-    top->io_w_bits_1 = w[w_index][w_row_p][1];
-    // printf("w[%d][%d][0]:%d\t", w_index, w_row_p, w[w_index][w_row_p][0]);
-    // printf("w[%d][%d][1]:%d\n", w_index, w_row_p, w[w_index][w_row_p][1]);
-    // printf("%x %x\n", top->io_w_bits_0, top->io_w_bits_1);
-    if (w_row_p == 0) {
-      w_index++;
-      w_row_p = MAT_SIZE - 1;
-    } else {
-      w_row_p--;
-    }
-  }
-}
-
 void check_ofm() {
   printf("!!!!!!!!!!!!!!!!!!!!check Begin!!!!!!!!!!!!!\n");
   for (int i = 0; i < INPUT_NUM; i++) {
@@ -163,6 +120,7 @@ void check_ofm() {
     }
   }
   printf("!!!!!!!!!!!!!!!!!!!!check pass!!!!!!!!!!!!!\n");
+  sim_finish = 1;  
 }
 
 int ifm_hs_reg = 0;
@@ -183,30 +141,44 @@ void change_input() {
     change_w();
   }
 
-  // output0 save
-  if (top->io_ofm_0_valid) {
-    if (output_index_0 != INPUT_NUM) {
-      hw_ofm0[output_index_0][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data0;
-      hw_ofm1[output_index_0][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data1;
-      if (top->io_ofm_0_bits_addr == MAT_SIZE - 1) {
-        output_index_0++;
-      }
-    }
+
+#define output_save(a)                                                                          \
+  if (top->io_ofm_##a##_valid) {                                                                \
+    if (output_index_##a != INPUT_NUM) {                                                        \
+      hw_ofm0[output_index_##a][top->io_ofm_##a##_bits_addr][a] = top->io_ofm_##a##_bits_data0; \
+      hw_ofm1[output_index_##a][top->io_ofm_##a##_bits_addr][a] = top->io_ofm_##a##_bits_data1; \
+      if (top->io_ofm_##a##_bits_addr == MAT_SIZE - 1) {                                        \
+        output_index_##a++;                                                                     \
+      }                                                                                         \
+    }                                                                                           \
   }
 
-  // output1 save and check
-  if (top->io_ofm_1_valid) {
-    if (output_index_1 != INPUT_NUM) {
-      hw_ofm0[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data0;
-      hw_ofm1[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data1;
-      if (top->io_ofm_1_bits_addr == MAT_SIZE - 1) {
-        output_index_1++;
-        if (output_index_1 == INPUT_NUM) {
-          check_ofm();
-          sim_finish = 1;
-        }
-      }
-    }
+  LOOP(output_save)
+
+  // // output0 save
+  // if (top->io_ofm_0_valid) {
+  //   if (output_index_0 != INPUT_NUM) {
+  //     hw_ofm0[output_index_0][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data0;
+  //     hw_ofm1[output_index_0][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data1;
+  //     if (top->io_ofm_0_bits_addr == MAT_SIZE - 1) {
+  //       output_index_0++;
+  //     }
+  //   }
+  // }
+
+  // // output1 save and check
+  // if (top->io_ofm_1_valid) {
+  //   if (output_index_1 != INPUT_NUM) {
+  //     hw_ofm0[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data0;
+  //     hw_ofm1[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data1;
+  //     if (top->io_ofm_1_bits_addr == MAT_SIZE - 1) {
+  //       output_index_1++;
+  //     }
+  //   }
+  // }
+
+  if (val_output_index_max == INPUT_NUM){
+    check_ofm();                                                     
   }
 
   update_reg();

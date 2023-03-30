@@ -106,13 +106,13 @@ class Mesh() extends Module with mesh_config {
   val ofm_valid = RegInit(0.U((mesh_rows * 2).W))
   ofm_valid := ofm_valid ## ifm_handshake
   for (c <- 0 until mesh_columns) {
-    io.ofm(c).valid := ofm_valid(mesh_rows + c - 1)
+    io.ofm(c).valid := ofm_valid(mesh_rows + c)
   }
 
   val addr_cnt_sr = RegInit(
     Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)),
     0.B.asTypeOf(Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)))) // shift reg
-  when(ofm_valid(mesh_rows - 1)) {
+  when(ofm_valid(mesh_rows)) {
     addr_cnt_sr(0) := addr_cnt_sr(0) + 1.U
     when(addr_cnt_sr(0) === mesh_rows.U) {
       addr_cnt_sr(0) := 0.U

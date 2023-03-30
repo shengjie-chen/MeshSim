@@ -6,8 +6,7 @@ import chisel3.util._
 class PEControl extends Bundle {
   val datatype = UInt(3.W) // 001 -- INT8, 010 -- INT32, 100 -- FL32
   val propagate = Bool() // propagate: Which register should be propagated (and which should be accumulated)?
-  //  val sel = Bool()
-
+  val sel = Bool() // which b to compute
 }
 
 // TODO update documentation
@@ -39,16 +38,17 @@ class PE extends Module with pe_config {
   val a0 = io.in_a(7, 0).asSInt
   val a1 = io.in_a(23, 16).asSInt
   val p = io.ctl.propagate
-  val use_index = RegInit(0.B)
-  val use_start = RegInit(0.B)
-  when(p){
-    use_start := 1.B
-  }
-  when(use_start){
-    use_index := ~p
-  }
+//  val use_start = RegInit(0.B)
+//  val use_index = ShiftRegister(~p, delay, use_start)
+  val sel = io.ctl.sel
+//  when(p) {
+//    use_start := 1.B
+//  }
+//  when(use_start) {
+//    use_index := ~p
+//  }
   val use_b = Wire(SInt(pe_data_w.W))
-  use_b := b(use_index)
+  use_b := b(sel)
   dontTouch(use_b)
 
   b(p) := io.in_b.asSInt

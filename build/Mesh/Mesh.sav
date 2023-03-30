@@ -1,0 +1,114 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu Mar 30 08:29:57 2023
+[*]
+[dumpfile] "/home/jiexxpu/ncnnAccel/hw_ncnnAccel/build/Mesh/Mesh.wave"
+[dumpfile_mtime] "Thu Mar 30 08:26:07 2023"
+[dumpfile_size] 19688
+[savefile] "/home/jiexxpu/ncnnAccel/hw_ncnnAccel/build/Mesh/Mesh.sav"
+[timestart] 32
+[size] 1920 1043
+[pos] 1847 0
+*-1.947862 40 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.Mesh.
+[sst_width] 335
+[signals_width] 305
+[sst_expanded] 1
+[sst_vpaned_height] 534
+@28
+[color] 1
+TOP.Mesh.clock
+TOP.Mesh.reset
+@24
+TOP.Mesh.cnt[31:0]
+@28
+TOP.Mesh.start_cnt
+@200
+-IFM
+@28
+[color] 2
+TOP.Mesh.io_ifm_valid
+[color] 2
+TOP.Mesh.io_ifm_ready
+@22
+TOP.Mesh.io_ifm_bits_0[31:0]
+TOP.Mesh.io_ifm_bits_1[31:0]
+@200
+-W
+@28
+[color] 2
+TOP.Mesh.io_w_valid
+[color] 2
+TOP.Mesh.io_w_ready
+@22
+TOP.Mesh.io_w_bits_0[31:0]
+TOP.Mesh.io_w_bits_1[31:0]
+@200
+-OFM0
+@28
+[color] 2
+TOP.Mesh.io_ofm_0_valid
+TOP.Mesh.io_ofm_0_bits_addr
+@24
+TOP.Mesh.io_ofm_0_bits_data0[31:0]
+@28
+[color] 2
+TOP.Mesh.io_ofm_1_valid
+TOP.Mesh.io_ofm_1_bits_addr
+@24
+TOP.Mesh.io_ofm_1_bits_data0[31:0]
+@200
+-OFM1
+@24
+[color] 2
+TOP.Mesh.io_ofm_0_valid
+@28
+TOP.Mesh.io_ofm_0_bits_addr
+@24
+TOP.Mesh.io_ofm_0_bits_data1[31:0]
+[color] 2
+TOP.Mesh.io_ofm_1_valid
+@28
+TOP.Mesh.io_ofm_1_bits_addr
+@24
+TOP.Mesh.io_ofm_1_bits_data1[31:0]
+@200
+-mesh 0 0
+@28
+[color] 1
+TOP.Mesh.clock
+TOP.Mesh.mesh_0_0.use_index
+@24
+TOP.Mesh.mesh_0_0.use_b[31:0]
+TOP.Mesh.mesh_0_0.a0[7:0]
+TOP.Mesh.mesh_0_0.io_out_d0[31:0]
+@200
+-compute
+@22
+TOP.Mesh.mesh_0_0.a0[7:0]
+TOP.Mesh.mesh_0_0.a1[7:0]
+TOP.Mesh.mesh_0_0.b_1[31:0]
+@200
+-propagrate
+@28
+TOP.Mesh.mesh_0_0_io_ctl_propagate
+TOP.Mesh.mesh_0_1_io_ctl_propagate
+TOP.Mesh.mesh_1_0_io_ctl_propagate
+TOP.Mesh.mesh_1_1_io_ctl_propagate
+@200
+-mesh 1 0
+@28
+[color] 1
+TOP.Mesh.mesh_1_0.clock
+@29
+TOP.Mesh.mesh_1_0.use_index
+@24
+TOP.Mesh.mesh_1_0.use_b[31:0]
+TOP.Mesh.mesh_1_0.a0[7:0]
+TOP.Mesh.mesh_1_0.io_in_c0[31:0]
+TOP.Mesh.mesh_1_0.io_out_d0[31:0]
+@28
+TOP.Mesh.io_ofm_0_valid
+[pattern_trace] 1
+[pattern_trace] 0

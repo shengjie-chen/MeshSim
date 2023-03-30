@@ -63,6 +63,26 @@ class Mesh() extends Module with mesh_config {
     }
   }
 
+  // (pipeline sel across each row)
+//  val sel = Wire(Vec(mesh_columns, Bool()))
+//  for (r <- 0 until mesh_rows) {
+//    for (c <- 0 until mesh_columns) {
+//      if(r == 0){
+//        mesh(r)(c).io.ctl.sel := !mesh(r)(c).io.ctl.propagate
+//      }else{
+//        mesh(r)(c).io.ctl.sel := mesh(r)()
+//      }
+//    }
+//  }
+  for (c <- 0 until mesh_columns) {
+    meshT(c).foldLeft(!mesh(0)(c).io.ctl.propagate) {
+      case (w, pe) =>
+        pe.io.ctl.sel := w
+        RegNext(pe.io.ctl.sel)
+    }
+  }
+
+
   // broadcast update & datatype
   for (r <- 0 until mesh_rows) {
     for (c <- 0 until mesh_columns) {

@@ -1,6 +1,5 @@
-verilog/*
-/build/*
-.vscode/*
-.idea/*
-target/*
-!/build/Mesh/Mesh.sav
+verilog/
+.vscode/
+.idea/
+target/
+/build/

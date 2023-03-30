@@ -9,7 +9,7 @@
 #include <sys/time.h>
 using namespace std;
 #define INPUT_MAX 30
-#define INPUT_NUM 2
+#define INPUT_NUM 10
 #define MAT_SIZE 2
 
 vluint64_t main_time = 0;        // 当前仿真时间

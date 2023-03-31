@@ -9,8 +9,8 @@
 #include <sys/time.h>
 using namespace std;
 #define INPUT_MAX 30
-#define INPUT_NUM 10
-#define MAT_SIZE 2
+#define INPUT_NUM 2
+#define MAT_SIZE 3
 
 vluint64_t main_time = 0;        // 当前仿真时间
 const vluint64_t sim_time = 200; // 最高仿真时间 可选：100
@@ -63,6 +63,7 @@ int input_index = 0;
 int w_index = 0;
 int output_index_0 = 0;
 int output_index_1 = 0;
+int output_index_2 = 0;
 
 void InputInit() {
   for (int i = 0; i < INPUT_NUM; i++) {
@@ -101,10 +102,12 @@ void change_ifm() {
   if (input_index == INPUT_NUM) {
     top->io_ifm_bits_0 = 0;
     top->io_ifm_bits_1 = 0;
+    top->io_ifm_bits_2 = 0;
     top->io_ifm_valid = 0;
   } else {
     top->io_ifm_bits_0 = ifm0[input_index][ifm_row_p][0] + (ifm1[input_index][ifm_row_p][0] << 16);
     top->io_ifm_bits_1 = ifm0[input_index][ifm_row_p][1] + (ifm1[input_index][ifm_row_p][1] << 16);
+    top->io_ifm_bits_2 = ifm0[input_index][ifm_row_p][2] + (ifm1[input_index][ifm_row_p][2] << 16);
     // printf("%x\n",ifm0[input_index][ifm_row_p][0] );
     // printf("%x\n",top->io_ifm_bits_0 );
     // printf("%x\n",top->io_ifm_bits_1);
@@ -120,10 +123,12 @@ void change_w() {
   if (w_index == INPUT_NUM) {
     top->io_w_bits_0 = 0;
     top->io_w_bits_1 = 0;
+    top->io_w_bits_2 = 0;
     top->io_w_valid = 0;
   } else {
     top->io_w_bits_0 = w[w_index][w_row_p][0];
     top->io_w_bits_1 = w[w_index][w_row_p][1];
+    top->io_w_bits_2 = w[w_index][w_row_p][2];
     // printf("w[%d][%d][0]:%d\t", w_index, w_row_p, w[w_index][w_row_p][0]);
     // printf("w[%d][%d][1]:%d\n", w_index, w_row_p, w[w_index][w_row_p][1]);
     // printf("%x %x\n", top->io_w_bits_0, top->io_w_bits_1);
@@ -201,7 +206,18 @@ void change_input() {
       hw_ofm1[output_index_1][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data1;
       if (top->io_ofm_1_bits_addr == MAT_SIZE - 1) {
         output_index_1++;
-        if (output_index_1 == INPUT_NUM) {
+      }
+    }
+  }
+
+  // output2 save and check
+  if (top->io_ofm_2_valid) {
+    if (output_index_2 != INPUT_NUM) {
+      hw_ofm0[output_index_2][top->io_ofm_2_bits_addr][1] = top->io_ofm_2_bits_data0;
+      hw_ofm1[output_index_2][top->io_ofm_2_bits_addr][1] = top->io_ofm_2_bits_data1;
+      if (top->io_ofm_2_bits_addr == MAT_SIZE - 1) {
+        output_index_2++;
+        if (output_index_2 == INPUT_NUM) {
           check_ofm();
           sim_finish = 1;
         }

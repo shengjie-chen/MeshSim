@@ -9,8 +9,8 @@
 #include <sys/time.h>
 using namespace std;
 #define INPUT_MAX 30
-#define INPUT_NUM 1
-#define MAT_SIZE 3
+#define INPUT_NUM 10
+#define MAT_SIZE 32
 
 vluint64_t main_time = 0;          // 当前仿真时间
 const vluint64_t sim_time = 20000; // 最高仿真时间 可选：100
@@ -339,18 +339,18 @@ int main(int argc, char **argv, char **env) {
   //   printf("my   io_ifm_bits_1 addr: %p\n", ((IData *)&top->io_ifm_bits_0) + 1);
   //   printf("top->io_ifm_bits_2 addr: %p\n", &top->io_ifm_bits_2);
   //   printf("my   io_ifm_bits_2 addr: %p\n", ((IData *)&top->io_ifm_bits_0) + 2);
-    printf("top->io_ofm_0_valid addr: %p\n", &top->io_ofm_0_valid);
-    printf("top->io_ofm_1_valid addr: %p\n", &top->io_ofm_1_valid);
-    printf("my   io_ofm_1_valid addr: %p\n", (CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP));
-    printf("top->io_ofm_0_bits_data0 addr: %p\n", &top->io_ofm_0_bits_data0);
-    printf("top->io_ofm_1_bits_data0 addr: %p\n", &top->io_ofm_1_bits_data0);
-    printf("my   io_ofm_1_bits_data0 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP));
-    printf("top->io_ofm_0_bits_data1 addr: %p\n", &top->io_ofm_0_bits_data1);
-    printf("top->io_ofm_1_bits_data1 addr: %p\n", &top->io_ofm_1_bits_data1);
-    printf("my   io_ofm_1_bits_data1 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP));
-    printf("my addr valid gap: %ld\n", OFM_ADDR_V_GAP);
-    printf("my addr data  gap: %ld\n", OFM_ADDR_D_GAP);
-    printf("my addr addr  gap: %ld\n", (uint64_t)&top->io_ofm_1_bits_addr - (uint64_t)&top->io_ofm_0_bits_addr);
+  // printf("top->io_ofm_0_valid addr: %p\n", &top->io_ofm_0_valid);
+  // printf("top->io_ofm_1_valid addr: %p\n", &top->io_ofm_1_valid);
+  // printf("my   io_ofm_1_valid addr: %p\n", (CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP));
+  // printf("top->io_ofm_0_bits_data0 addr: %p\n", &top->io_ofm_0_bits_data0);
+  // printf("top->io_ofm_1_bits_data0 addr: %p\n", &top->io_ofm_1_bits_data0);
+  // printf("my   io_ofm_1_bits_data0 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP));
+  // printf("top->io_ofm_0_bits_data1 addr: %p\n", &top->io_ofm_0_bits_data1);
+  // printf("top->io_ofm_1_bits_data1 addr: %p\n", &top->io_ofm_1_bits_data1);
+  // printf("my   io_ofm_1_bits_data1 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP));
+  // printf("my addr valid gap: %ld\n", OFM_ADDR_V_GAP);
+  // printf("my addr data  gap: %ld\n", OFM_ADDR_D_GAP);
+  // printf("my addr addr  gap: %ld\n", (uint64_t)&top->io_ofm_1_bits_addr - (uint64_t)&top->io_ofm_0_bits_addr);
 
   end = clock();
   int time = double(end - start) / CLOCKS_PER_SEC;

@@ -102,8 +102,9 @@ trait pe_config {
 }
 
 trait mesh_config extends pe_config {
-  val mesh_rows = 3
-  val mesh_columns = 3
+  val mesh_size = 32
+  val mesh_rows = mesh_size
+  val mesh_columns = mesh_size
   val conti_level = 2 // Continuous level, compute c_l block in single SA without changing weight
   val ofm_buffer_addr_w = log2Up(mesh_rows)
 

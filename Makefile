@@ -38,5 +38,5 @@ sim_vcd_no_regen:
 	echo $(CSRCS_VCD)
 	verilator -MMD -O2 --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
-	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
+	#gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 

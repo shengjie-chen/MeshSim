@@ -23,6 +23,7 @@ class PE extends Module with pe_config {
     val in_b = Input(UInt(pe_data_w.W)) // w
     val in_c0 = Input(UInt(pe_data_w.W)) // part sum
     val in_c1 = Input(UInt(pe_data_w.W)) // part sum
+    val in_b_valid = Input(Bool())
 
     val ctl = Input(new PEControl)
 
@@ -30,6 +31,8 @@ class PE extends Module with pe_config {
     val out_b = Output(UInt(pe_data_w.W)) // w output
     val out_d0 = Output(UInt(pe_data_w.W)) // part sum
     val out_d1 = Output(UInt(pe_data_w.W)) // part sum
+    val out_b_valid = Output(Bool())
+
   })
   assert(io.ctl.datatype === 1.U)
 
@@ -38,21 +41,27 @@ class PE extends Module with pe_config {
   val a0 = io.in_a(7, 0).asSInt
   val a1 = io.in_a(23, 16).asSInt
   val p = io.ctl.propagate
-//  val use_start = RegInit(0.B)
-//  val use_index = ShiftRegister(~p, delay, use_start)
+  //  val use_start = RegInit(0.B)
+  //  val use_index = ShiftRegister(~p, delay, use_start)
   val sel = io.ctl.sel
-//  when(p) {
-//    use_start := 1.B
-//  }
-//  when(use_start) {
-//    use_index := ~p
-//  }
+  //  when(p) {
+  //    use_start := 1.B
+  //  }
+  //  when(use_start) {
+  //    use_index := ~p
+  //  }
   val use_b = Wire(SInt(pe_data_w.W))
   use_b := b(sel)
   dontTouch(use_b)
-
-  b(p) := io.in_b.asSInt
+  when(io.in_b_valid) {
+    b(p) := io.in_b.asSInt
+  }
   io.out_b := b(p).asUInt
+
+  val b_invalid = Wire(Vec(2,Bool()))
+  b_invalid(0) := io.ctl.sel && RegNext(!io.ctl.sel) // sel posedge
+  b_invalid(1) := !io.ctl.sel && RegNext(io.ctl.sel) // sel negedge
+  io.out_b_valid := !b_invalid(p) && !(io.ctl.propagate === io.ctl.sel)
 
   io.out_a := RegNext(io.in_a)
   io.out_d0 := RegNext(io.in_c0.asSInt + a0 * use_b).asUInt

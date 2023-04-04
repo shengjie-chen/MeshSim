@@ -9,7 +9,7 @@
 #include <sys/time.h>
 using namespace std;
 #define INPUT_MAX 30
-#define INPUT_NUM 2
+#define INPUT_NUM 10
 #define MAT_SIZE 3
 
 vluint64_t main_time = 0;        // 当前仿真时间
@@ -152,7 +152,6 @@ void check_ofm() {
           printf("hw:\n");
           MatPrint(hw_ofm0[i]);
           printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
-
           return;
         }
         if (ofm1[i][r][c] != hw_ofm1[i][r][c]) {
@@ -161,7 +160,6 @@ void check_ofm() {
           printf("hw:\n");
           MatPrint(hw_ofm1[i]);
           printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
-
           return;
         }
       }
@@ -213,11 +211,12 @@ void change_input() {
   // output2 save and check
   if (top->io_ofm_2_valid) {
     if (output_index_2 != INPUT_NUM) {
-      hw_ofm0[output_index_2][top->io_ofm_2_bits_addr][1] = top->io_ofm_2_bits_data0;
-      hw_ofm1[output_index_2][top->io_ofm_2_bits_addr][1] = top->io_ofm_2_bits_data1;
+      hw_ofm0[output_index_2][top->io_ofm_2_bits_addr][2] = top->io_ofm_2_bits_data0;
+      hw_ofm1[output_index_2][top->io_ofm_2_bits_addr][2] = top->io_ofm_2_bits_data1;
       if (top->io_ofm_2_bits_addr == MAT_SIZE - 1) {
         output_index_2++;
         if (output_index_2 == INPUT_NUM) {
+          Outputprint();
           check_ofm();
           sim_finish = 1;
         }
@@ -299,7 +298,6 @@ int main(int argc, char **argv, char **env) {
     one_clock();
   }
 
-  Outputprint();
   end = clock();
   int time = double(end - start) / CLOCKS_PER_SEC;
   uint64_t clock_cnt = main_time / 2;

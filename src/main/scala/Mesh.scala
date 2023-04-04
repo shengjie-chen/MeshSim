@@ -46,7 +46,7 @@ class Mesh() extends Module with mesh_config {
   //  }
   io.w.ready := w_ready
   io.ifm.ready := ifm_ready
-  when(start_cnt === (mesh_rows-1).U) {
+  when(start_cnt === (mesh_rows - 1).U) {
     ifm_ready := 1.B
   }
   val ifm_handshake = io.ifm.valid && io.ifm.ready
@@ -64,16 +64,16 @@ class Mesh() extends Module with mesh_config {
   }
 
   // (pipeline sel across each row)
-//  val sel = Wire(Vec(mesh_columns, Bool()))
-//  for (r <- 0 until mesh_rows) {
-//    for (c <- 0 until mesh_columns) {
-//      if(r == 0){
-//        mesh(r)(c).io.ctl.sel := !mesh(r)(c).io.ctl.propagate
-//      }else{
-//        mesh(r)(c).io.ctl.sel := mesh(r)()
-//      }
-//    }
-//  }
+  //  val sel = Wire(Vec(mesh_columns, Bool()))
+  //  for (r <- 0 until mesh_rows) {
+  //    for (c <- 0 until mesh_columns) {
+  //      if(r == 0){
+  //        mesh(r)(c).io.ctl.sel := !mesh(r)(c).io.ctl.propagate
+  //      }else{
+  //        mesh(r)(c).io.ctl.sel := mesh(r)()
+  //      }
+  //    }
+  //  }
   for (c <- 0 until mesh_columns) {
     meshT(c).foldLeft(!mesh(0)(c).io.ctl.propagate) {
       case (w, pe) =>
@@ -107,6 +107,11 @@ class Mesh() extends Module with mesh_config {
         pe.io.in_b := w
         pe.io.out_b
     }
+    meshT(c).foldLeft(1.B) {
+      case (in, pe) =>
+        pe.io.in_b_valid := in
+        pe.io.out_b_valid
+    }
   }
 
   // pipeline part sum across each column
@@ -134,7 +139,7 @@ class Mesh() extends Module with mesh_config {
     0.B.asTypeOf(Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)))) // shift reg
   when(ofm_valid(mesh_rows - 1)) {
     addr_cnt_sr(0) := addr_cnt_sr(0) + 1.U
-    when(addr_cnt_sr(0) === mesh_rows.U) {
+    when(addr_cnt_sr(0) === (mesh_rows-1).U) {
       addr_cnt_sr(0) := 0.U
     }
   }

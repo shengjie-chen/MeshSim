@@ -41,15 +41,8 @@ class PE extends Module with pe_config {
   val a0 = io.in_a(7, 0).asSInt
   val a1 = io.in_a(23, 16).asSInt
   val p = io.ctl.propagate
-  //  val use_start = RegInit(0.B)
-  //  val use_index = ShiftRegister(~p, delay, use_start)
   val sel = io.ctl.sel
-  //  when(p) {
-  //    use_start := 1.B
-  //  }
-  //  when(use_start) {
-  //    use_index := ~p
-  //  }
+
   val use_b = Wire(SInt(pe_data_w.W))
   use_b := b(sel)
   dontTouch(use_b)

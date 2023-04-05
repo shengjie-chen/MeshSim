@@ -11,13 +11,8 @@ class ofm_data extends Bundle with mesh_config {
 class Mesh() extends Module with mesh_config {
   val io = IO(new Bundle {
     val w = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
-    //    val w_valid = Input(Bool())
     val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
-    //    val ifm_valid = Input(Bool()) // then transfer 1 block
-
     val ofm = Vec(mesh_columns, Valid(new ofm_data))
-    //    val ofm_addr =Output(Vec(mesh_columns, UInt(ofm_buffer_addr_w.W)))
-    //    val ofm_valid = Output(Bool())
   })
 
   val mesh = Seq.fill(mesh_rows, mesh_columns)(Module(new PE))
@@ -41,9 +36,7 @@ class Mesh() extends Module with mesh_config {
 
   val w_ready = RegInit(1.B)
   val ifm_ready = RegInit(0.B)
-  //  when(io.w.valid){
-  //    w_ready := 1.B
-  //  }
+
   io.w.ready := w_ready
   io.ifm.ready := ifm_ready
   when(start_cnt === (mesh_rows - 1).U) {
@@ -64,16 +57,6 @@ class Mesh() extends Module with mesh_config {
   }
 
   // (pipeline sel across each row)
-  //  val sel = Wire(Vec(mesh_columns, Bool()))
-  //  for (r <- 0 until mesh_rows) {
-  //    for (c <- 0 until mesh_columns) {
-  //      if(r == 0){
-  //        mesh(r)(c).io.ctl.sel := !mesh(r)(c).io.ctl.propagate
-  //      }else{
-  //        mesh(r)(c).io.ctl.sel := mesh(r)()
-  //      }
-  //    }
-  //  }
   for (c <- 0 until mesh_columns) {
     meshT(c).foldLeft(!mesh(0)(c).io.ctl.propagate) {
       case (w, pe) =>
@@ -81,7 +64,6 @@ class Mesh() extends Module with mesh_config {
         RegNext(pe.io.ctl.sel)
     }
   }
-
 
   // broadcast update & datatype
   for (r <- 0 until mesh_rows) {
@@ -152,7 +134,6 @@ class Mesh() extends Module with mesh_config {
     io.ofm(c).bits.data0 := mesh(mesh_rows - 1)(c).io.out_d0
     io.ofm(c).bits.data1 := mesh(mesh_rows - 1)(c).io.out_d1
   }
-
 
 }
 

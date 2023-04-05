@@ -8,9 +8,20 @@
 #include <stdint.h>
 #include <sys/time.h>
 using namespace std;
+
 #define INPUT_MAX 30
 #define INPUT_NUM 10
 #define MAT_SIZE 32
+
+// TOP IO PORT
+#define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
+#define TOP_W_BITS_COL(a) *(((IData *)&top->io_w_bits_0) + a)
+#define OFM_ADDR_V_GAP ((uint64_t)&top->io_ofm_1_valid - (uint64_t)&top->io_ofm_0_valid)
+#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_1_bits_data0 - (uint64_t)&top->io_ofm_0_bits_data0)
+#define TOP_OFM_VALID_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP * i)
+#define TOP_OFM_ADDR_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * a)
+#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP * a)
+#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP * a)
 
 vluint64_t main_time = 0;          // 当前仿真时间
 const vluint64_t sim_time = 20000; // 最高仿真时间 可选：100
@@ -20,13 +31,33 @@ VerilatedVcdC *tfp = new VerilatedVcdC;
 
 int sim_finish = 0;
 
+// input
 uint32_t ifm0[INPUT_NUM][MAT_SIZE][MAT_SIZE];
 uint32_t ifm1[INPUT_NUM][MAT_SIZE][MAT_SIZE];
 uint32_t w[INPUT_NUM][MAT_SIZE][MAT_SIZE];
+// gold
 uint32_t ofm0[INPUT_NUM][MAT_SIZE][MAT_SIZE];
 uint32_t ofm1[INPUT_NUM][MAT_SIZE][MAT_SIZE];
+// dut
 uint32_t hw_ofm0[INPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
 uint32_t hw_ofm1[INPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
+
+// print
+void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
+  for (int row = 0; row < MAT_SIZE; row++) {
+    for (int col = 0; col < MAT_SIZE; col++) {
+      cout << A[row][col] << "  ";
+    }
+    cout << endl;
+  }
+}
+
+// ################ stimulator ################
+int ifm_row_p = 0;
+int w_row_p = MAT_SIZE - 1;
+int input_index = 0;
+int w_index = 0;
+int output_index[MAT_SIZE] = {0};
 
 void MatMul(uint32_t A[MAT_SIZE][MAT_SIZE], uint32_t B[MAT_SIZE][MAT_SIZE], uint32_t C[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
@@ -48,31 +79,6 @@ void MatInit(uint32_t A[MAT_SIZE][MAT_SIZE]) {
   }
 }
 
-void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
-  for (int row = 0; row < MAT_SIZE; row++) {
-    for (int col = 0; col < MAT_SIZE; col++) {
-      cout << A[row][col] << "  ";
-    }
-    cout << endl;
-  }
-}
-
-int ifm_row_p = 0;
-int w_row_p = MAT_SIZE - 1;
-int input_index = 0;
-int w_index = 0;
-// #if (MAT_SIZE == 2)
-// #define LOOP(f) f(0) f(1)
-// #elif (MAT_SIZE == 3)
-// #define LOOP(f) f(0) f(1) f(2)
-// #endif
-// #define output_index_init(a) int output_index_##a = 0;
-// LOOP(output_index_init)
-// int output_index_0 = 0;
-// int output_index_1 = 0;
-// int output_index_2 = 0;
-int output_index[MAT_SIZE] = {0};
-
 void InputInit() {
   for (int i = 0; i < INPUT_NUM; i++) {
     cout << "************ GOLD RESULT " << i << " ************" << endl;
@@ -92,39 +98,18 @@ void InputInit() {
     cout << "ofm1:" << endl;
     MatPrint(ofm1[i]);
   }
-  //  printf("#################\n");
-}
-
-void Outputprint() {
-  for (int i = 0; i < INPUT_NUM; i++) {
-    cout << "************ HW RESULT " << i << " ************" << endl;
-    cout << "ofm0:" << endl;
-    MatPrint(hw_ofm0[i]);
-    MatMul(ifm1[i], w[i], ofm1[i]);
-    cout << "ofm1:" << endl;
-    MatPrint(hw_ofm1[i]);
-  }
 }
 
 void change_ifm() {
   if (input_index == INPUT_NUM) {
-    // top->io_ifm_bits_0 = 0;
-    // top->io_ifm_bits_1 = 0;
-    // top->io_ifm_bits_2 = 0;
     for (int i = 0; i < MAT_SIZE; i++) {
-      *(((IData *)&top->io_ifm_bits_0) + i) = 0;
+      TOP_IFM_BITS_ROW(i) = 0;
     }
     top->io_ifm_valid = 0;
   } else {
-    // top->io_ifm_bits_0 = ifm0[input_index][ifm_row_p][0] + (ifm1[input_index][ifm_row_p][0] << 16);
-    // top->io_ifm_bits_1 = ifm0[input_index][ifm_row_p][1] + (ifm1[input_index][ifm_row_p][1] << 16);
-    // top->io_ifm_bits_2 = ifm0[input_index][ifm_row_p][2] + (ifm1[input_index][ifm_row_p][2] << 16);
     for (int i = 0; i < MAT_SIZE; i++) {
-      *(((IData *)&top->io_ifm_bits_0) + i) = ifm0[input_index][ifm_row_p][i] + (ifm1[input_index][ifm_row_p][i] << 16);
+      TOP_IFM_BITS_ROW(i) = ifm0[input_index][ifm_row_p][i] + (ifm1[input_index][ifm_row_p][i] << 16);
     }
-    // printf("%x\n",ifm0[input_index][ifm_row_p][0] );
-    // printf("%x\n",top->io_ifm_bits_0 );
-    // printf("%x\n",top->io_ifm_bits_1);
     ifm_row_p++;
     if (ifm_row_p == MAT_SIZE) {
       ifm_row_p = 0;
@@ -135,29 +120,32 @@ void change_ifm() {
 
 void change_w() {
   if (w_index == INPUT_NUM) {
-    // top->io_w_bits_0 = 0;
-    // top->io_w_bits_1 = 0;
-    // top->io_w_bits_2 = 0;
     for (int i = 0; i < MAT_SIZE; i++) {
-      *(((IData *)&top->io_w_bits_0) + i) = 0;
+      TOP_W_BITS_COL(i) = 0;
     }
     top->io_w_valid = 0;
   } else {
-    // top->io_w_bits_0 = w[w_index][w_row_p][0];
-    // top->io_w_bits_1 = w[w_index][w_row_p][1];
-    // top->io_w_bits_2 = w[w_index][w_row_p][2];
     for (int i = 0; i < MAT_SIZE; i++) {
-      *(((IData *)&top->io_w_bits_0) + i) = w[w_index][w_row_p][i];
+      TOP_W_BITS_COL(i) = w[w_index][w_row_p][i];
     }
-    // printf("w[%d][%d][0]:%d\t", w_index, w_row_p, w[w_index][w_row_p][0]);
-    // printf("w[%d][%d][1]:%d\n", w_index, w_row_p, w[w_index][w_row_p][1]);
-    // printf("%x %x\n", top->io_w_bits_0, top->io_w_bits_1);
     if (w_row_p == 0) {
       w_index++;
       w_row_p = MAT_SIZE - 1;
     } else {
       w_row_p--;
     }
+  }
+}
+
+// ################ checker ################
+void Outputprint() {
+  for (int i = 0; i < INPUT_NUM; i++) {
+    cout << "************ HW RESULT " << i << " ************" << endl;
+    cout << "ofm0:" << endl;
+    MatPrint(hw_ofm0[i]);
+    MatMul(ifm1[i], w[i], ofm1[i]);
+    cout << "ofm1:" << endl;
+    MatPrint(hw_ofm1[i]);
   }
 }
 
@@ -188,15 +176,13 @@ void check_ofm() {
   printf("!!!!!!!!!!!!!!!!!!!!check pass!!!!!!!!!!!!!\n");
 }
 
+// ################ SIM ################
 int ifm_hs_reg = 0;
 int w_hs_reg = 0;
 void update_reg() {
   ifm_hs_reg = top->io_ifm_ready && top->io_ifm_valid;
   w_hs_reg = top->io_w_ready && top->io_w_valid;
 }
-
-#define OFM_ADDR_V_GAP ((uint64_t)&top->io_ofm_1_valid - (uint64_t)&top->io_ofm_0_valid)
-#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_1_bits_data0 - (uint64_t)&top->io_ofm_0_bits_data0)
 
 void change_input() {
   // change ifm
@@ -209,45 +195,12 @@ void change_input() {
     change_w();
   }
 
-  // // output0 save
-  // if (top->io_ofm_0_valid) {
-  //   if (output_index[0] != INPUT_NUM) {
-  //     hw_ofm0[output_index[0]][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data0;
-  //     hw_ofm1[output_index[0]][top->io_ofm_0_bits_addr][0] = top->io_ofm_0_bits_data1;
-  //     if (top->io_ofm_0_bits_addr == MAT_SIZE - 1) {
-  //       output_index[0]++;
-  //     }
-  //   }
-  // }
-
-  // // output1 save and check
-  // if (top->io_ofm_1_valid) {
-  //   if (output_index[1] != INPUT_NUM) {
-  //     hw_ofm0[output_index[1]][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data0;
-  //     hw_ofm1[output_index[1]][top->io_ofm_1_bits_addr][1] = top->io_ofm_1_bits_data1;
-  //     if (top->io_ofm_1_bits_addr == MAT_SIZE - 1) {
-  //       output_index[1]++;
-  //     }
-  //   }
-  // }
-
-  // // output2 save and check
-  // if (top->io_ofm_2_valid) {
-  //   if (output_index[2] != INPUT_NUM) {
-  //     hw_ofm0[output_index[2]][top->io_ofm_2_bits_addr][2] = top->io_ofm_2_bits_data0;
-  //     hw_ofm1[output_index[2]][top->io_ofm_2_bits_addr][2] = top->io_ofm_2_bits_data1;
-  //     if (top->io_ofm_2_bits_addr == MAT_SIZE - 1) {
-  //       output_index[2]++;
-  //     }
-  //   }
-  // }
-
   for (int i = 0; i < MAT_SIZE; i++) {
-    if (*(CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP * i)) {
+    if (TOP_OFM_VALID_COL(i)) {
       if (output_index[i] != INPUT_NUM) {
-        hw_ofm0[output_index[i]][*(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * i)][i] = *(IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP * i);
-        hw_ofm1[output_index[i]][*(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * i)][i] = *(IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP * i);
-        if (*(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * i) == MAT_SIZE - 1) {
+        hw_ofm0[output_index[i]][TOP_OFM_ADDR_COL(i)][i] = TOP_OFM_DATA0_COL(i);
+        hw_ofm1[output_index[i]][TOP_OFM_ADDR_COL(i)][i] = TOP_OFM_DATA1_COL(i);
+        if (TOP_OFM_ADDR_COL(i) == MAT_SIZE - 1) {
           output_index[i]++;
         }
       }
@@ -333,24 +286,6 @@ int main(int argc, char **argv, char **env) {
   while (!Verilated::gotFinish() && main_time < sim_time && !sim_finish) {
     one_clock();
   }
-
-  //   printf("top->io_ifm_bits_0 addr: %p\n", &top->io_ifm_bits_0);
-  //   printf("top->io_ifm_bits_1 addr: %p\n", &top->io_ifm_bits_1);
-  //   printf("my   io_ifm_bits_1 addr: %p\n", ((IData *)&top->io_ifm_bits_0) + 1);
-  //   printf("top->io_ifm_bits_2 addr: %p\n", &top->io_ifm_bits_2);
-  //   printf("my   io_ifm_bits_2 addr: %p\n", ((IData *)&top->io_ifm_bits_0) + 2);
-  // printf("top->io_ofm_0_valid addr: %p\n", &top->io_ofm_0_valid);
-  // printf("top->io_ofm_1_valid addr: %p\n", &top->io_ofm_1_valid);
-  // printf("my   io_ofm_1_valid addr: %p\n", (CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP));
-  // printf("top->io_ofm_0_bits_data0 addr: %p\n", &top->io_ofm_0_bits_data0);
-  // printf("top->io_ofm_1_bits_data0 addr: %p\n", &top->io_ofm_1_bits_data0);
-  // printf("my   io_ofm_1_bits_data0 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP));
-  // printf("top->io_ofm_0_bits_data1 addr: %p\n", &top->io_ofm_0_bits_data1);
-  // printf("top->io_ofm_1_bits_data1 addr: %p\n", &top->io_ofm_1_bits_data1);
-  // printf("my   io_ofm_1_bits_data1 addr: %p\n", (IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP));
-  // printf("my addr valid gap: %ld\n", OFM_ADDR_V_GAP);
-  // printf("my addr data  gap: %ld\n", OFM_ADDR_D_GAP);
-  // printf("my addr addr  gap: %ld\n", (uint64_t)&top->io_ofm_1_bits_addr - (uint64_t)&top->io_ofm_0_bits_addr);
 
   end = clock();
   int time = double(end - start) / CLOCKS_PER_SEC;

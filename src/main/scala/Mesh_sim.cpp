@@ -10,21 +10,18 @@
 using namespace std;
 
 #define INPUT_MAX 30
-#define INPUT_NUM 10
+#define INPUT_NUM 20
 #define MAT_SIZE 32
 
 // TOP IO PORT
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
 #define TOP_W_BITS_COL(a) *(((IData *)&top->io_w_bits_0) + a)
-#define OFM_ADDR_V_GAP ((uint64_t)&top->io_ofm_1_valid - (uint64_t)&top->io_ofm_0_valid)
-#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_1_bits_data0 - (uint64_t)&top->io_ofm_0_bits_data0)
-#define TOP_OFM_VALID_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP * i)
-#define TOP_OFM_ADDR_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * a)
-#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP * a)
-#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP * a)
+#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_bits_data0_1 - (uint64_t)&top->io_ofm_bits_data0_0)
+#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_bits_data0_0 + OFM_ADDR_D_GAP * a)
+#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_bits_data1_0 + OFM_ADDR_D_GAP * a)
 
 vluint64_t main_time = 0;          // 当前仿真时间
-const vluint64_t sim_time = 20000; // 最高仿真时间 可选：100
+const vluint64_t sim_time = -1; // 最高仿真时间 可选：100
 
 VMesh *top = new VMesh;
 VerilatedVcdC *tfp = new VerilatedVcdC;
@@ -57,7 +54,7 @@ int ifm_row_p = 0;
 int w_row_p = MAT_SIZE - 1;
 int input_index = 0;
 int w_index = 0;
-int output_index[MAT_SIZE] = {0};
+int output_index = 0;
 
 void MatMul(uint32_t A[MAT_SIZE][MAT_SIZE], uint32_t B[MAT_SIZE][MAT_SIZE], uint32_t C[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
@@ -196,18 +193,19 @@ void change_input() {
   }
 
   for (int i = 0; i < MAT_SIZE; i++) {
-    if (TOP_OFM_VALID_COL(i)) {
-      if (output_index[i] != INPUT_NUM) {
-        hw_ofm0[output_index[i]][TOP_OFM_ADDR_COL(i)][i] = TOP_OFM_DATA0_COL(i);
-        hw_ofm1[output_index[i]][TOP_OFM_ADDR_COL(i)][i] = TOP_OFM_DATA1_COL(i);
-        if (TOP_OFM_ADDR_COL(i) == MAT_SIZE - 1) {
-          output_index[i]++;
-        }
+    if (top->io_ofm_valid) {
+      if (output_index != INPUT_NUM) {
+        hw_ofm0[output_index][top->io_ofm_bits_addr][i] = TOP_OFM_DATA0_COL(i);
+        hw_ofm1[output_index][top->io_ofm_bits_addr][i] = TOP_OFM_DATA1_COL(i);
       }
     }
   }
 
-  if (output_index[MAT_SIZE - 1] == INPUT_NUM) {
+  if (top->io_ofm_bits_addr == MAT_SIZE - 1) {
+    output_index++;
+  }
+
+  if (output_index == INPUT_NUM) {
     Outputprint();
     check_ofm();
     sim_finish = 1;

@@ -3,8 +3,8 @@ import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.util._
 
 class ofm_data extends Bundle with mesh_config {
-  val data0 = UInt(pe_data_w.W)
-  val data1 = UInt(pe_data_w.W)
+  val data0 = Vec(mesh_columns, UInt(pe_data_w.W))
+  val data1 = Vec(mesh_columns, UInt(pe_data_w.W))
   val addr = UInt(ofm_buffer_addr_w.W)
 }
 
@@ -12,7 +12,7 @@ class Mesh() extends Module with mesh_config {
   val io = IO(new Bundle {
     val w = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
     val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
-    val ofm = Vec(mesh_columns, Valid(new ofm_data))
+    val ofm = Valid(new ofm_data)
   })
 
   val mesh = Seq.fill(mesh_rows, mesh_columns)(Module(new PE))
@@ -110,29 +110,18 @@ class Mesh() extends Module with mesh_config {
     }
   }
 
-  val ofm_valid = RegInit(0.U((mesh_rows * 2).W))
-  ofm_valid := ofm_valid ## ifm_handshake
-  for (c <- 0 until mesh_columns) {
-    io.ofm(c).valid := ofm_valid(mesh_rows + c - 1)
-  }
-
-  val addr_cnt_sr = RegInit(
-    Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)),
-    0.B.asTypeOf(Vec(mesh_rows, UInt(ofm_buffer_addr_w.W)))) // shift reg
-  when(ofm_valid(mesh_rows - 1)) {
-    addr_cnt_sr(0) := addr_cnt_sr(0) + 1.U
-    when(addr_cnt_sr(0) === (mesh_rows-1).U) {
-      addr_cnt_sr(0) := 0.U
+  io.ofm.valid := ShiftRegister(ifm_handshake, mesh_rows * 2)
+  val addr_cnt = RegInit(0.U(ofm_buffer_addr_w.W))
+  when(io.ofm.valid) {
+    addr_cnt := addr_cnt + 1.U
+    when(addr_cnt === (mesh_rows - 1).U) {
+      addr_cnt := 0.U
     }
   }
-  for (i <- 1 until mesh_rows) {
-    addr_cnt_sr(i) := addr_cnt_sr(i - 1)
-  }
-
+  io.ofm.bits.addr := addr_cnt
   for (c <- 0 until mesh_columns) {
-    io.ofm(c).bits.addr := addr_cnt_sr(c)
-    io.ofm(c).bits.data0 := mesh(mesh_rows - 1)(c).io.out_d0
-    io.ofm(c).bits.data1 := mesh(mesh_rows - 1)(c).io.out_d1
+    io.ofm.bits.data0(c) := ShiftRegister(mesh(mesh_rows - 1)(c).io.out_d0, mesh_rows - c)
+    io.ofm.bits.data1(c) := ShiftRegister(mesh(mesh_rows - 1)(c).io.out_d1, mesh_rows - c)
   }
 
 }

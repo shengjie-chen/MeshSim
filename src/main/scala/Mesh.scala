@@ -13,6 +13,9 @@ class Mesh() extends Module with mesh_config {
     val w = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
     val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
     val ofm = Valid(new ofm_data)
+
+    val last_in = Input(Bool())
+    val last_out = Output(Bool())
   })
 
   val mesh = Seq.fill(mesh_rows, mesh_columns)(Module(new PE))
@@ -124,6 +127,7 @@ class Mesh() extends Module with mesh_config {
     io.ofm.bits.data1(c) := ShiftRegister(mesh(mesh_rows - 1)(c).io.out_d1, mesh_rows - c)
   }
 
+  io.last_out := ShiftRegister(io.last_in, mesh_rows * 2)
 }
 
 object mesh_gen extends App {

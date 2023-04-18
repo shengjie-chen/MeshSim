@@ -1,27 +1,20 @@
 import chisel3._
 import chisel3.util._
 
-trait sim_config{
+trait dma_config{
   val simMode = true
-  val fp32_adder_sim = false
-  val fp32_multiplier_sim = false
-  val pe_sim  = true
-}
-
-trait dma_config extends sim_config{
   val dmaAddrWidth = if (simMode) 64 else 32
   val dmaSizeWidth = 32
   val dmaDataWidth = 128
-  val id = Map("alu"->1,"pool"->2,"im2col"->3, "wgtBuf"->4, "opfusion"->5)
-  val dma_ch0_en_cfg = Map("alu"->true,"pool"->false,"im2col"->true, "wgtBuf"->false, "opfusion"->false)
-  val dma_ch1_en_cfg = Map("alu"->true,"pool"->false,"im2col"->false,"wgtBuf"->true, "opfusion"->true)
+  val id = Map("alu"->1,"gemm"->2,"pool"->3)
+  val dma_ch0_en_cfg = Map("alu"->true,"gemm"->true,"pool"->false)
+  val dma_ch1_en_cfg = Map("alu"->true,"gemm"->true,"pool"->false)
   val dma_ch_width = 2
 }
 
 trait buffer_config {
-  //ifm_mem * 2
-  val ifm_buffer_size =  32768   //1MB
-  val ifm_buffer_width = 256     //64Bytes
+  val ifm_buffer_size =  65536   //2MB
+  val ifm_buffer_width = 256     //32Bytes
 }
 
 trait hw_config extends dma_config with buffer_config {
@@ -30,16 +23,21 @@ trait hw_config extends dma_config with buffer_config {
   val MATH_AXI_DATA_WIDTH = 32
   val MATH_AXI_ADDR_WIDTH = 4
   val alu_mathfunc_en = false
-  val alu_mat_en = false
-  val im2col_en = false
-  val wgtBuf_en = false
-  val opfusion_en = false
-  val dma_en = alu_mat_en || im2col_en || wgtBuf_en || opfusion_en
+  val alu_mat_en = true
+  val pool_en = false
+  val gemm_en = false
+  val fp32_adder_sim = false
+  val fp32_multiplier_sim = false
+  val opfusion_sim = false
+  val im2col_sim = true
+  val wgtbuf_sim = false
+
+  val dma_en = alu_mat_en || pool_en || gemm_en || im2col_sim || wgtbuf_sim
 }
 
 trait alu_mat_config extends dma_config{
-  val alu_add_id = 0.U
-  val alu_mul_id = 1.U
+  val alu_mul_id = 0.U
+  val alu_add_id = 1.U
   val alu_abs_id = 2.U
   val ALU_DATA_WIDTH = dmaDataWidth
   val ALU_BURST_LEN = 256
@@ -64,6 +62,8 @@ trait alu_mathfunc_config{
   val alu_log_en = true
 }
 
+
+
 trait cal_cell_params{
   val fp32_add_cycles = 2
   val fp32_mul_cycles = 2
@@ -72,7 +72,7 @@ trait cal_cell_params{
   val int32_mul_cycles = 1
   val in32_addmul_cycles = 1
   val sint_to_fp32_cycles = 1
-  val fp32_to_sint_cycles = 1
+  val fp32_to_sint_cycles = 2
   val relu_cycles = 0
   val leakyrelu_cycles = fp32_mul_cycles
 }
@@ -88,10 +88,6 @@ trait gemm_config{
   val Mat32_INT32 = 1.U
   val IFM_FP32 = 2.U
   val IFM_INT8 = 3.U
-  val gemm_ch0_pipeline_width = 128
-  val meshRows = 32
-  val meshColumns = 32
-  val accMemRow = 64
 }
 
 trait pe_config {

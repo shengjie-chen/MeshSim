@@ -11,7 +11,7 @@ class ofm_data extends Bundle with mesh_config {
 class Mesh() extends Module with mesh_config {
   val io = IO(new Bundle {
     val w = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
-    val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
+    val ifm = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W)))) // each has 2 int8 or 1 int32/fp32
     val ofm = Valid(new ofm_data)
 
     val last_in = Input(Bool())

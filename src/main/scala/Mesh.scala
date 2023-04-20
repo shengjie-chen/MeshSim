@@ -7,7 +7,7 @@ class ofm_data extends Bundle with mesh_config {
   val data1 = Vec(mesh_columns, UInt(pe_data_w.W))
   val addr = UInt(ofm_buffer_addr_w.W)
 }
-
+// TODO: ifm ready need to be advanced by 1 cycle, and some ctl need to change
 class Mesh() extends Module with mesh_config {
   val io = IO(new Bundle {
     val w = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))

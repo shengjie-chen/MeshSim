@@ -2,7 +2,7 @@ import chisel3._
 import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.util._
 
-class IfmBuffer extends Module with mesh_config with buffer_config {
+class IfmBufferSimple extends Module with mesh_config with buffer_config {
   val io = IO(new Bundle {
     //axi-lite reg
     val im2col_format = Input(UInt(2.W))
@@ -108,4 +108,8 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
   }
   io.last_in := RegNext(im2col_w_block_cnt === im2col_w_block_num - 1.U)
 
+}
+
+object IfmBufferSimple_gen extends App {
+  new (chisel3.stage.ChiselStage).execute(Array("--target-dir", "./verilog/ifmbuffer"), Seq(ChiselGeneratorAnnotation(() => new IfmBufferSimple)))
 }

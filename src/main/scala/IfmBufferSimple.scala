@@ -55,7 +55,6 @@ class IfmBufferSimple extends Module with mesh_config with buffer_config {
   val iw_pd_cnt1 = ow_cnt1 * io.stride + kw_cnt
   val ih_pd_cnt1 = oh_cnt1 * io.stride + kh_cnt
 
-
   val iw_cnt0 = Mux(iw_pd_cnt0 < low_w || iw_pd_cnt0 >= high_w, 0.U, iw_pd_cnt0 - low_w)
   val ih_cnt0 = Mux(ih_pd_cnt0 < low_h || ih_pd_cnt0 >= high_h, 0.U, ih_pd_cnt0 - low_h)
   val iw_cnt1 = Mux(iw_pd_cnt1 < low_w || iw_pd_cnt1 >= high_w, 0.U, iw_pd_cnt1 - low_w)

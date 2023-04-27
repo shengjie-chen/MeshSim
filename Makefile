@@ -3,6 +3,7 @@ TOPNAME = MeshTop
 TOPMODULE_GEN = $(TOPNAME)Gen
 # scala src dir
 SRC_DIR = ./src/main/scala
+COPY_DIR = ../QinPro/hw_ncnnAccel/src/main/scala
 
 GEN_DIR = $(BUILD_DIR)/$(TOPNAME)
 OBJ_DIR = $(GEN_DIR)/obj_dir
@@ -40,4 +41,7 @@ sim_vcd_no_regen:
 	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
+
+copy:
+	cp $(COPY_DIR)/* $(SRC_DIR)/
 

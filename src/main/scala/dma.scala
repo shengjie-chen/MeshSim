@@ -44,9 +44,7 @@ class dmaWData_io(dmaDataWidth:Int) extends Bundle{
 class dmaAreqAbrit extends Module with dma_config {
   val io = IO(new Bundle() {
     val aluAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    val im2colAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    val wgtBufAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    val opfusionAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    val gemmAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
     //...
     val sel          = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val toDma        = new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth)
@@ -69,14 +67,8 @@ class dmaAreqAbrit extends Module with dma_config {
       when(io.aluAreq.dmaEn){
         sel := id("alu").U
         state := sKeep
-      }.elsewhen(io.im2colAreq.dmaEn){
-        sel := id("im2col").U
-        state := sKeep
-      }.elsewhen(io.wgtBufAreq.dmaEn){
-        sel := id("wgtBuf").U
-        state := sKeep
-      }.elsewhen(io.opfusionAreq.dmaEn){
-        sel := id("opfusion").U
+      }.elsewhen(io.gemmAreq.dmaEn){
+        sel := id("gemm").U
         state := sKeep
       }
       //...
@@ -96,23 +88,11 @@ class dmaAreqAbrit extends Module with dma_config {
       size := io.aluAreq.dmaSize
       areq := io.aluAreq.dmaAreq
     }
-    is(id("im2col").U) { //dma_im2col
-      en := io.im2colAreq.dmaEn
-      addr := io.im2colAreq.dmaAddr
-      size := io.im2colAreq.dmaSize
-      areq := io.im2colAreq.dmaAreq
-    }
-    is(id("wgtBuf").U) { //dma_wgtBuf
-      en := io.wgtBufAreq.dmaEn
-      addr := io.wgtBufAreq.dmaAddr
-      size := io.wgtBufAreq.dmaSize
-      areq := io.wgtBufAreq.dmaAreq
-    }
-    is (id("opfusion").U) { //dma_opfusion
-      en := io.opfusionAreq.dmaEn
-      addr := io.opfusionAreq.dmaAddr
-      size := io.opfusionAreq.dmaSize
-      areq := io.opfusionAreq.dmaAreq
+    is(id("gemm").U) { //dma_gemm
+      en := io.gemmAreq.dmaEn
+      addr := io.gemmAreq.dmaAddr
+      size := io.gemmAreq.dmaSize
+      areq := io.gemmAreq.dmaAreq
     }
     //...
   }
@@ -129,19 +109,13 @@ class dmaRBufSel extends Module with dma_config{
     val sel = Input(UInt(log2Ceil(id.values.toList.max+1).W))
     val dataIn = new dmaRData_io(dmaDataWidth)
     val aluData = Flipped(new dmaRData_io(dmaDataWidth))
-    val im2colData = Flipped(new dmaRData_io(dmaDataWidth))
-    val wgtBufData = Flipped(new dmaRData_io(dmaDataWidth))
-    val opfusionData = Flipped(new dmaRData_io(dmaDataWidth))
+    val gemmData = Flipped(new dmaRData_io(dmaDataWidth))
     //...
   })
   io.aluData.data := Mux(io.sel === id("alu").U,io.dataIn.data,0.U)
   io.aluData.valid  :=  Mux(io.sel === id("alu").U,io.dataIn.valid,0.U)
-  io.im2colData.data := Mux(io.sel === id("im2col").U, io.dataIn.data, 0.U)
-  io.im2colData.valid := Mux(io.sel === id("im2col").U, io.dataIn.valid, 0.U)
-  io.wgtBufData.data := Mux(io.sel === id("wgtBuf").U, io.dataIn.data, 0.U)
-  io.wgtBufData.valid := Mux(io.sel === id("wgtBuf").U, io.dataIn.valid, 0.U)
-  io.opfusionData.data := Mux(io.sel === id("opfusion").U, io.dataIn.data, 0.U)
-  io.opfusionData.valid := Mux(io.sel === id("opfusion").U, io.dataIn.valid, 0.U)
+  io.gemmData.data := Mux(io.sel === id("gemm").U, io.dataIn.data, 0.U)
+  io.gemmData.valid := Mux(io.sel === id("gemm").U, io.dataIn.valid, 0.U)
   //...
 }
 
@@ -167,14 +141,19 @@ class dmaWBufSel extends Module with dma_config{
     val sel = Input(UInt(log2Ceil(id.values.toList.max+1).W))
     val dataOut = new dmaWData_io(dmaDataWidth)
     val aluData = Flipped(new dmaWData_io(dmaDataWidth))
+    val gemmData = Flipped(new dmaWData_io(dmaDataWidth))
     //...
   })
 
   io.dataOut.data := 0.U
   io.aluData.valid := 0.U
+  io.gemmData.valid := 0.U
   when(io.sel === id("alu").U) {
     io.dataOut.data := io.aluData.data
     io.aluData.valid := io.dataOut.valid
+  }.elsewhen(io.sel === id("gemm").U) {
+    io.dataOut.data := io.gemmData.data
+    io.gemmData.valid := io.dataOut.valid
   }
   //...
 }
@@ -258,12 +237,8 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
     val rid = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val aluRAreq = if(en_cfg("alu")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val aluRData = if(en_cfg("alu")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
-    val im2colRAreq = if(en_cfg("im2col")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
-    val im2colRData = if(en_cfg("im2col")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
-    val wgtBufRAreq = if (en_cfg("wgtBuf")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
-    val wgtBufRData = if (en_cfg("wgtBuf")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
-    val opfusionRAreq = if (en_cfg("opfusion")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
-    val opfusionRData = if (en_cfg("opfusion")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
+    val gemmRAreq = if(en_cfg("gemm")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val gemmRData = if(en_cfg("gemm")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
     //...
 
     //----------------------write channel----------------------//
@@ -272,6 +247,8 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
     val wid = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val aluWAreq = if(en_cfg("alu")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val aluWData = if(en_cfg("alu")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
+    val gemmWAreq = if (en_cfg("gemm")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val gemmWData = if (en_cfg("gemm")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
     //...
   })
 
@@ -292,23 +269,11 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
   }else{
     dmaRAreqAbrit.io.aluAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
-  if(en_cfg("im2col")){
-    io.im2colRData.get <> dmaRBufSel.io.im2colData
-    dmaRAreqAbrit.io.im2colAreq <> io.im2colRAreq.get
+  if(en_cfg("gemm")){
+    io.gemmRData.get <> dmaRBufSel.io.gemmData
+    dmaRAreqAbrit.io.gemmAreq <> io.gemmRAreq.get
   }else{
-    dmaRAreqAbrit.io.im2colAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-  }
-  if (en_cfg("wgtBuf")) {
-    io.wgtBufRData.get <> dmaRBufSel.io.wgtBufData
-    dmaRAreqAbrit.io.wgtBufAreq <> io.wgtBufRAreq.get
-  } else {
-    dmaRAreqAbrit.io.wgtBufAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-  }
-  if (en_cfg("opfusion")) {
-    io.opfusionRData.get <> dmaRBufSel.io.opfusionData
-    dmaRAreqAbrit.io.opfusionAreq <> io.opfusionRAreq.get
-  } else {
-    dmaRAreqAbrit.io.opfusionAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dmaRAreqAbrit.io.gemmAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
   //...
 
@@ -323,15 +288,17 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
   dmaWBufSel.io.sel := dmaWAreqAbrit.io.sel
   dmaWBufSel.io.dataOut <> dmaW.io.dataIn
 
-  dmaWAreqAbrit.io.im2colAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-  dmaWAreqAbrit.io.wgtBufAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-  dmaWAreqAbrit.io.opfusionAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-
   if (en_cfg("alu")) {
     io.aluWData.get <> dmaWBufSel.io.aluData
     dmaWAreqAbrit.io.aluAreq <> io.aluWAreq.get
   }else{
     dmaWAreqAbrit.io.aluAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  }
+  if (en_cfg("gemm")) {
+    io.gemmWData.get <> dmaWBufSel.io.gemmData
+    dmaWAreqAbrit.io.gemmAreq <> io.gemmWAreq.get
+  } else {
+    dmaWAreqAbrit.io.gemmAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
   //...
 }

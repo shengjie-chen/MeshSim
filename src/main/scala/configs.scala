@@ -1,5 +1,6 @@
 import chisel3._
-import chisel3.util._
+import chisel3.util.log2Up
+
 
 trait dma_config{
   val simMode = true
@@ -14,10 +15,12 @@ trait dma_config{
 
 trait buffer_config {
   val ifm_buffer_size =  65536   //2MB
-  val ifm_buffer_width = 256     //32Bytes
+  val ifm_buffer_width = 256     //64Bytes
+  val wgt_buffer_width = 8*32
+  val wgt_buffer_size = 16*1024
 }
 
-trait hw_config extends dma_config with buffer_config {
+trait hw_config extends dma_config with buffer_config with mesh_config{
   val ACCEL_AXI_DATA_WIDTH = 32
   val ACCEL_AXI_ADDR_WIDTH = 7
   val MATH_AXI_DATA_WIDTH = 32
@@ -30,7 +33,9 @@ trait hw_config extends dma_config with buffer_config {
   val fp32_multiplier_sim = false
   val opfusion_sim = false
   val im2col_sim = true
-  val wgtbuf_sim = false
+  val wgtbuf_sim = true
+  val ifmbuf_sim = true
+  val accmem_sim = true
 
   val dma_en = alu_mat_en || pool_en || gemm_en || im2col_sim || wgtbuf_sim
 }
@@ -93,7 +98,7 @@ trait gemm_config{
 trait pe_config {
   //float int8 int32
   //int8 int32
-//  val data_type = 2.U
+  //  val data_type = 2.U
   val pe_data_w = 32
 }
 
@@ -101,7 +106,5 @@ trait mesh_config extends pe_config {
   val mesh_size = 32
   val mesh_rows = mesh_size
   val mesh_columns = mesh_size
-  val conti_level = 2 // Continuous level, compute c_l block in single SA without changing weight
   val ofm_buffer_addr_w = log2Up(mesh_rows)
-
 }

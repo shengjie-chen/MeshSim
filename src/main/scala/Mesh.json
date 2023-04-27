@@ -1,0 +1,21 @@
+// mesh size = 3
+//                                   comput start |block| finish
+{ signal: [
+    { name: "clk",                 wave: "p.......|.....|......." },
+    { name: "start",               wave: "0..1....|.....|....0.." },
+    { name: "stop",                wave: "0.......|..10.|......." },
+    { name: "start_cnt",           wave: "3..33333|333.3|3333...", data: [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 2, 0, 1, 2] },
+    { name: "w_finish",            wave: "0.......|.....|10....." },   // w
+    { name: "io.w.valid",          wave: "0.1.....|.....|......." },     
+    { name: "io.w.ready",          wave: "1.......|..01.|......." },
+    { name: "w_data",              wave: "3..33333|333.3|3333...", data: [0, 1, 2, 3, 4, 5, 15, 16, 17, 18, 104 ] },
+    { name: "ifm_finish",          wave: "0.......|.....|...10.." },  // ifm 
+    { name: "io.ifm.valid",        wave: "0.1.....|.....|....0.." },  // need change other hw     
+    { name: "io.ifm.ready",        wave: "0...11..|..01.|....0.." },
+    { name: "ifm_ready_inside",    wave: "0....1..|..01.|....0.." },
+    { name: "ifm_data",            wave: "x...3.33|333.3|33333..", data: [0, 1, 2, 12, 13, 14, 15, 101, 102, 103, 104, "zero"] },
+    { name: "ifm_addr",            wave: "x..3.333|333.3|333x...", data: [0, 1, 2, 3, 13, 14, 15, 16, 102, 103, 104] },
+    { name: "State",               wave: "4.......|5....|6......", data: ["Start", "Blokcing", "Finish"] },
+
+    {}
+  ]}

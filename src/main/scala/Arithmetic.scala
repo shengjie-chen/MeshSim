@@ -17,7 +17,8 @@ object Float{
     convert.io.in := recFNFromFN(a.exp_width,a.sig_width,a.bits)
     convert.io.roundingMode := consts.round_near_maxMag
     convert.io.signedOut := true.B
-    RegNext(convert.io.out.asSInt)
+    val res = RegNext(convert.io.out.asSInt)
+    RegNext(Mux(res === -128.S(8.W),-127.S(8.W),res))
   }
   def SIntToFloat(a:SInt,intWidth:Int,exp_width:Int = 8,sig_width:Int = 24):Float = {
     val convert = Module(new INToRecFN(intWidth,exp_width,sig_width))

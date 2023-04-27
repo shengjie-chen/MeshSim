@@ -164,7 +164,7 @@ class fp32_ifm_unit extends Module with dma_config with buffer_config with cal_c
   val ifm_wen = RegInit(false.B)
   val load_done = RegInit(false.B)
   val store_done = fallEdge(ifm_wen)
-
+  
   //dma_ctrl
   val dma_trans_done = RegInit(false.B)
   val dma_trans_stop = RegInit(false.B)
@@ -254,7 +254,7 @@ class fp32_ifm_unit extends Module with dma_config with buffer_config with cal_c
   ifm_wh_cnt := Mux(io.clr|io.start, 0.U, Mux(ifm_wen, ifm_wh_cnt+1.U, ifm_wh_cnt))
   ifm_wh_cnt_base := Mux(io.start, 0.U, Mux(store_done & (ifm_c_cnt_div32===ifm_c_align_div32), ifm_wh_cnt_base+64.U, ifm_wh_cnt_base))
   when(ifm_wen & ifm_wh_cnt === 63.U){
-    ifm_c_cnt_div32 := ifm_c_cnt_div32 + 1.U
+      ifm_c_cnt_div32 := ifm_c_cnt_div32 + 1.U
   }.elsewhen(io.start | ifm_c_cnt_div32===ifm_c_align_div32){
     ifm_c_cnt_div32 := 0.U
   }

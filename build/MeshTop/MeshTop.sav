@@ -1,31 +1,54 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Apr 10 12:02:26 2023
+[*] Fri Apr 28 02:43:47 2023
 [*]
-[dumpfile] "/home/jiexxpu/ncnnAccel/hw_ncnnAccel/build/MeshTop/MeshTop.wave"
-[dumpfile_mtime] "Mon Apr 10 11:59:02 2023"
-[dumpfile_size] 153609
-[savefile] "/home/jiexxpu/ncnnAccel/hw_ncnnAccel/build/MeshTop/MeshTop.sav"
-[timestart] 36
+[dumpfile] "/home/jiexxpu/ncnnAccel/MeshSim/build/MeshTop/MeshTop.wave"
+[dumpfile_mtime] "Fri Apr 28 02:39:44 2023"
+[dumpfile_size] 14459
+[savefile] "/home/jiexxpu/ncnnAccel/MeshSim/build/MeshTop/MeshTop.sav"
+[timestart] 31
 [size] 1920 1043
 [pos] 1847 0
-*-2.609586 53 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-2.574371 41 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.MeshTop.
 [treeopen] TOP.MeshTop.acc_mem.
+[treeopen] TOP.MeshTop.mesh.
 [sst_width] 292
 [signals_width] 302
 [sst_expanded] 1
 [sst_vpaned_height] 308
 @28
 TOP.MeshTop.acc_mem.clock
+TOP.MeshTop.io_last_in
+TOP.MeshTop.io_stop
 @200
 -Mesh
 @28
 TOP.MeshTop.mesh.io_ifm_valid
+TOP.MeshTop.mesh.io_ifm_ready
+@22
+TOP.MeshTop.mesh.io_ifm_bits_0[31:0]
+@28
 TOP.MeshTop.mesh.io_w_valid
+TOP.MeshTop.mesh.io_w_ready
+@22
+TOP.MeshTop.mesh.io_w_bits_0[31:0]
+@28
+TOP.MeshTop.mesh.io_w_finish
 TOP.MeshTop.mesh.io_ofm_valid
 TOP.MeshTop.mesh.io_last_in
+@200
+-PE00
+@28
+TOP.MeshTop.mesh.mesh_0_0.io_ctl_sel
+@23
+TOP.MeshTop.mesh.mesh_0_0.io_in_a[31:0]
+@22
+TOP.MeshTop.mesh.mesh_0_0.io_out_a[31:0]
+@24
+TOP.MeshTop.mesh.mesh_0_0.a0[7:0]
+TOP.MeshTop.mesh.mesh_0_0.a1[7:0]
 @200
 -AccMem
 @28

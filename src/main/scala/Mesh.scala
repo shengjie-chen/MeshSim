@@ -63,8 +63,8 @@ class Mesh() extends Module with mesh_config {
   }
   val ifm_handshake = io.ifm.valid && (ifm_ready_inside && en)
 
-  val propagate = RegEnable(0.B, en)
-  when(start_cnt === (mesh_rows - 1).U) {
+  val propagate = RegInit(0.B)
+  when(start_cnt === (mesh_rows - 1).U && en) {
     propagate := !propagate
   }
 

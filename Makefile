@@ -30,6 +30,7 @@ verilog:
 sim_vcd: verilog
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
+	#verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD)) --LDFLAGS -fsanitize=address # -CFLAGS -fsanitize=address
 	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
@@ -39,7 +40,7 @@ sim_vcd_no_regen:
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
 	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
-	$(BIN_VCD) > /dev/null
+	$(BIN_VCD) # > /dev/null
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 
 copy:

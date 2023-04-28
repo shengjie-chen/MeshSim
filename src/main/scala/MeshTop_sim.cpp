@@ -12,15 +12,15 @@ using namespace std;
 
 #define INPUT_MAX 30
 
-// #define MAT_SIZE 32
-// #define INPUT_NUM 20
-// #define EACH_NUM 10
-// #define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
+ #define MAT_SIZE 32
+ #define INPUT_NUM 200
+ #define EACH_NUM 25
+ #define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
 
-#define MAT_SIZE 3
-#define INPUT_NUM 4
-#define EACH_NUM 2
-#define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
+//#define MAT_SIZE 3
+//#define INPUT_NUM 4
+//#define EACH_NUM 2
+//#define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
 
 // TOP IO PORT
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
@@ -30,7 +30,7 @@ using namespace std;
 #define TOP_OUT_DATA1_COL(a) *(IData *)((uint64_t)&top->io_out_bits_data1_0 + OUT_ADDR_D_GAP * a)
 
 vluint64_t main_time = 0;                                         // 当前仿真时间
-const vluint64_t sim_time = 2 * (5 + INPUT_NUM) * MAT_SIZE + 100; // 最高仿真时间 可选：100
+const vluint64_t sim_time = 2 * (5 + INPUT_NUM) * MAT_SIZE + 1000; // 最高仿真时间 可选：100
 
 VMeshTop *top = new VMeshTop;
 VerilatedFstC *tfp = new VerilatedFstC;
@@ -52,14 +52,14 @@ uint32_t hw_ofm1[INPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
 uint32_t hw_out[OUTPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
 
 // print
-// void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
-//   for (int row = 0; row < MAT_SIZE; row++) {
-//     for (int col = 0; col < MAT_SIZE; col++) {
-//       cout << A[row][col] << "  ";
-//     }
-//     cout << endl;
-//   }
-// }
+void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
+  for (int row = 0; row < MAT_SIZE; row++) {
+    for (int col = 0; col < MAT_SIZE; col++) {
+      cout << A[row][col] << "  ";
+    }
+    cout << endl;
+  }
+}
 
 // ################ stimulator ################
 int ifm_row_p = 0;
@@ -97,16 +97,16 @@ void InputInit() {
     MatMul(ifm0[i], w[i], ofm0[i]);
     MatMul(ifm1[i], w[i], ofm1[i]);
 
-    // cout << "ifm0:" << endl;
-    // MatPrint(ifm0[i]);
-    // cout << "ifm1:" << endl;
-    // MatPrint(ifm1[i]);
-    // cout << "w:" << endl;
-    // MatPrint(w[i]);
-    // cout << "ofm0:" << endl;
-    // MatPrint(ofm0[i]);
-    // cout << "ofm1:" << endl;
-    // MatPrint(ofm1[i]);
+    cout << "ifm0:" << endl;
+    MatPrint(ifm0[i]);
+    cout << "ifm1:" << endl;
+    MatPrint(ifm1[i]);
+    cout << "w:" << endl;
+    MatPrint(w[i]);
+    cout << "ofm0:" << endl;
+    MatPrint(ofm0[i]);
+    cout << "ofm1:" << endl;
+    MatPrint(ofm1[i]);
   }
 
   cout << "************ GOLD OUT ************" << endl;
@@ -125,7 +125,7 @@ void InputInit() {
       }
     }
     cout << "out" << i << endl;
-    // MatPrint(out[i]);
+    MatPrint(out[i]);
   }
 }
 
@@ -177,7 +177,7 @@ void Outputprint() {
   for (int i = 0; i < OUTPUT_NUM; i++) {
     cout << "************ HW RESULT " << i << " ************" << endl;
     cout << "out" << i << endl;
-    // MatPrint(hw_out[i]);
+    MatPrint(hw_out[i]);
   }
 }
 
@@ -188,9 +188,9 @@ void check_out() {
       for (int c = 0; c < MAT_SIZE; c++) {
         if (out[i][r][c] != hw_out[i][r][c]) {
           printf("check error: \ngold out[%d]\n", i);
-          // MatPrint(out[i]);
+          MatPrint(out[i]);
           printf("hw:\n");
-          // MatPrint(hw_out[i]);
+          MatPrint(hw_out[i]);
           printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
           return;
         }
@@ -202,15 +202,17 @@ void check_out() {
 
 // ################ SIM ################
 int ifm_hs_reg = 0;
+int ifm_hs_reg_r = 0;
 int w_hs_reg = 0;
 void update_reg() {
+  ifm_hs_reg_r = ifm_hs_reg;
   ifm_hs_reg = top->io_ifm_ready && top->io_ifm_valid;
   w_hs_reg = top->io_w_ready && top->io_w_valid;
 }
 
 void change_input() {
   // change ifm
-  if (ifm_hs_reg) {
+  if (ifm_hs_reg_r) {
     change_ifm();
   }
 

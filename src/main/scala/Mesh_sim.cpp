@@ -10,8 +10,12 @@
 using namespace std;
 
 #define INPUT_MAX 30
-#define INPUT_NUM 20
-#define MAT_SIZE 32
+
+ #define INPUT_NUM 20
+ #define MAT_SIZE 32
+
+//#define MAT_SIZE 3
+//#define INPUT_NUM 2
 
 // TOP IO PORT
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
@@ -21,7 +25,7 @@ using namespace std;
 #define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_bits_data1_0 + OFM_ADDR_D_GAP * a)
 
 vluint64_t main_time = 0;          // 当前仿真时间
-const vluint64_t sim_time = INPUT_NUM * MAT_SIZE + 100; // 最高仿真时间 可选：100
+const vluint64_t sim_time = INPUT_NUM * MAT_SIZE + 1000; // 最高仿真时间 可选：100
 
 VMesh *top = new VMesh;
 VerilatedFstC *tfp = new VerilatedFstC;
@@ -175,15 +179,17 @@ void check_ofm() {
 
 // ################ SIM ################
 int ifm_hs_reg = 0;
+int ifm_hs_reg_r = 0;
 int w_hs_reg = 0;
 void update_reg() {
+  ifm_hs_reg_r = ifm_hs_reg;
   ifm_hs_reg = top->io_ifm_ready && top->io_ifm_valid;
   w_hs_reg = top->io_w_ready && top->io_w_valid;
 }
 
 void change_input() {
   // change ifm
-  if (ifm_hs_reg) {
+  if (ifm_hs_reg_r) {
     change_ifm();
   }
 

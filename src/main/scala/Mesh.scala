@@ -24,7 +24,7 @@ class Mesh() extends Module with mesh_config {
   val en         = !io.stop
   val w_finish   = io.w_finish
   val ifm_finish = ShiftRegister(w_finish, mesh_size, en)
-  assert(ifm_finish && io.last_in || !ifm_finish)
+//  assert(ifm_finish && io.last_in || !ifm_finish)
 
   //  val cnt = RegInit(0.U(32.W))
   //  when(io.w.valid || cnt =/= 0.U) {

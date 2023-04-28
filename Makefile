@@ -39,9 +39,16 @@ sim_vcd_no_regen:
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
 	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
-	$(BIN_VCD)
+	$(BIN_VCD) > /dev/null
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 
 copy:
 	cp $(COPY_DIR)/* $(SRC_DIR)/
+
+clean:
+	rm -rf $(OBJ_DIR) $(VERILOG_DIR) $(BIN_VCD)
+
+gtk:
+	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
+
 

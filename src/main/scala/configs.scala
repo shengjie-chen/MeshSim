@@ -103,7 +103,7 @@ trait pe_config {
 }
 
 trait mesh_config extends pe_config {
-  val mesh_size = 32
+  val mesh_size = 3
   val mesh_rows = mesh_size
   val mesh_columns = mesh_size
   val ofm_buffer_addr_w = log2Up(mesh_rows)

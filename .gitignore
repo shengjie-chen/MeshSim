@@ -3,3 +3,5 @@ verilog/
 .idea/
 target/
 /build/
+/project/**
+/.bsp/**

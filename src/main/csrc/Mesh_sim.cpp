@@ -1,4 +1,4 @@
-#include "VMeshTop.h"
+#include "VMesh.h"
 #include "svdpi.h"
 #include "time.h"
 #include "verilated.h"
@@ -7,32 +7,29 @@
 #include <iostream>
 #include <stdint.h>
 #include <sys/time.h>
+#include "./config.h"
 
 using namespace std;
 
-#define INPUT_MAX 30
+// #define accel::data_max 30
 
- #define MAT_SIZE 32
- #define INPUT_NUM 200
- #define EACH_NUM 25
- #define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
+#define INPUT_NUM ACCEL_ifm_block_num / 2
+#define MAT_SIZE ACCEL_mesh_size
 
 //#define MAT_SIZE 3
-//#define INPUT_NUM 4
-//#define EACH_NUM 2
-//#define OUTPUT_NUM INPUT_NUM / EACH_NUM * 2
+//#define INPUT_NUM 2
 
 // TOP IO PORT
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
 #define TOP_W_BITS_COL(a) *(((IData *)&top->io_w_bits_0) + a)
-#define OUT_ADDR_D_GAP ((uint64_t)&top->io_out_bits_data0_1 - (uint64_t)&top->io_out_bits_data0_0)
-#define TOP_OUT_DATA0_COL(a) *(IData *)((uint64_t)&top->io_out_bits_data0_0 + OUT_ADDR_D_GAP * a)
-#define TOP_OUT_DATA1_COL(a) *(IData *)((uint64_t)&top->io_out_bits_data1_0 + OUT_ADDR_D_GAP * a)
+#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_bits_data0_1 - (uint64_t)&top->io_ofm_bits_data0_0)
+#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_bits_data0_0 + OFM_ADDR_D_GAP * a)
+#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_bits_data1_0 + OFM_ADDR_D_GAP * a)
 
-vluint64_t main_time = 0;                                         // 当前仿真时间
-const vluint64_t sim_time = 2 * (5 + INPUT_NUM) * MAT_SIZE + 1000; // 最高仿真时间 可选：100
+vluint64_t main_time = 0;          // 当前仿真时间
+const vluint64_t sim_time = INPUT_NUM * MAT_SIZE + 1000; // 最高仿真时间 可选：100
 
-VMeshTop *top = new VMeshTop;
+VMesh *top = new VMesh;
 VerilatedFstC *tfp = new VerilatedFstC;
 
 int sim_finish = 0;
@@ -44,12 +41,9 @@ uint32_t w[INPUT_NUM][MAT_SIZE][MAT_SIZE];
 // gold
 uint32_t ofm0[INPUT_NUM][MAT_SIZE][MAT_SIZE];
 uint32_t ofm1[INPUT_NUM][MAT_SIZE][MAT_SIZE];
-uint32_t out[OUTPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
-
 // dut
 uint32_t hw_ofm0[INPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
 uint32_t hw_ofm1[INPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
-uint32_t hw_out[OUTPUT_NUM][MAT_SIZE][MAT_SIZE] = {0};
 
 // print
 void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
@@ -83,7 +77,7 @@ void MatMul(uint32_t A[MAT_SIZE][MAT_SIZE], uint32_t B[MAT_SIZE][MAT_SIZE], uint
 void MatInit(uint32_t A[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
     for (int col = 0; col < MAT_SIZE; col++) {
-      A[row][col] = rand() % INPUT_MAX;
+      A[row][col] = rand() % ACCEL_data_max;
     }
   }
 }
@@ -92,40 +86,20 @@ void InputInit() {
   for (int i = 0; i < INPUT_NUM; i++) {
     cout << "************ GOLD RESULT " << i << " ************" << endl;
     MatInit(ifm0[i]);
-    MatInit(ifm1[i]);
-    MatInit(w[i]);
-    MatMul(ifm0[i], w[i], ofm0[i]);
-    MatMul(ifm1[i], w[i], ofm1[i]);
-
     cout << "ifm0:" << endl;
     MatPrint(ifm0[i]);
+    MatInit(ifm1[i]);
     cout << "ifm1:" << endl;
     MatPrint(ifm1[i]);
+    MatInit(w[i]);
     cout << "w:" << endl;
     MatPrint(w[i]);
+    MatMul(ifm0[i], w[i], ofm0[i]);
     cout << "ofm0:" << endl;
     MatPrint(ofm0[i]);
+    MatMul(ifm1[i], w[i], ofm1[i]);
     cout << "ofm1:" << endl;
     MatPrint(ofm1[i]);
-  }
-
-  cout << "************ GOLD OUT ************" << endl;
-  for (int i = 0; i < OUTPUT_NUM; i++) {
-    for (int j = 0; j < MAT_SIZE; j++) {
-      for (int k = 0; k < MAT_SIZE; k++) {
-        if (i % 2 == 0) {
-          for (int m = 0; m < EACH_NUM; m++) {
-            out[i][j][k] = ofm0[i / 2 * EACH_NUM + m][j][k] + out[i][j][k];
-          }
-        } else {
-          for (int m = 0; m < EACH_NUM; m++) {
-            out[i][j][k] = ofm1[i / 2 * EACH_NUM + m][j][k] + out[i][j][k];
-          }
-        }
-      }
-    }
-    cout << "out" << i << endl;
-    MatPrint(out[i]);
   }
 }
 
@@ -135,17 +109,11 @@ void change_ifm() {
       TOP_IFM_BITS_ROW(i) = 0;
     }
     top->io_ifm_valid = 0;
-    top->io_last_in = 0;
   } else {
     for (int i = 0; i < MAT_SIZE; i++) {
       TOP_IFM_BITS_ROW(i) = ifm0[input_index][ifm_row_p][i] + (ifm1[input_index][ifm_row_p][i] << 16);
     }
     ifm_row_p++;
-    if (input_index % EACH_NUM == (EACH_NUM - 1)) {
-      top->io_last_in = 1;
-    } else {
-      top->io_last_in = 0;
-    }
     if (ifm_row_p == MAT_SIZE) {
       ifm_row_p = 0;
       input_index++;
@@ -174,23 +142,34 @@ void change_w() {
 
 // ################ checker ################
 void Outputprint() {
-  for (int i = 0; i < OUTPUT_NUM; i++) {
+  for (int i = 0; i < INPUT_NUM; i++) {
     cout << "************ HW RESULT " << i << " ************" << endl;
-    cout << "out" << i << endl;
-    MatPrint(hw_out[i]);
+    cout << "ofm0:" << endl;
+    MatPrint(hw_ofm0[i]);
+    MatMul(ifm1[i], w[i], ofm1[i]);
+    cout << "ofm1:" << endl;
+    MatPrint(hw_ofm1[i]);
   }
 }
 
-void check_out() {
+void check_ofm() {
   printf("!!!!!!!!!!!!!!!!!!!!check Begin!!!!!!!!!!!!!\n");
-  for (int i = 0; i < OUTPUT_NUM; i++) {
+  for (int i = 0; i < INPUT_NUM; i++) {
     for (int r = 0; r < MAT_SIZE; r++) {
       for (int c = 0; c < MAT_SIZE; c++) {
-        if (out[i][r][c] != hw_out[i][r][c]) {
-          printf("check error: \ngold out[%d]\n", i);
-          MatPrint(out[i]);
+        if (ofm0[i][r][c] != hw_ofm0[i][r][c]) {
+          printf("check error: \ngold ofm0[%d]\n", i);
+          MatPrint(ofm0[i]);
           printf("hw:\n");
-          MatPrint(hw_out[i]);
+          MatPrint(hw_ofm0[i]);
+          printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
+          return;
+        }
+        if (ofm1[i][r][c] != hw_ofm1[i][r][c]) {
+          printf("check error: ofm1[%d]\n", i);
+          MatPrint(ofm1[i]);
+          printf("hw:\n");
+          MatPrint(hw_ofm1[i]);
           printf("!!!!!!!!!!!!!!!!!!!!check Fail!!!!!!!!!!!!!\n");
           return;
         }
@@ -222,22 +201,21 @@ void change_input() {
   }
 
   for (int i = 0; i < MAT_SIZE; i++) {
-    if (top->io_out_valid) {
-      hw_out[output_index / MAT_SIZE * 2][output_index % MAT_SIZE][i] = TOP_OUT_DATA0_COL(i);
-      hw_out[output_index / MAT_SIZE * 2 + 1][output_index % MAT_SIZE][i] = TOP_OUT_DATA1_COL(i);
+    if (top->io_ofm_valid) {
+      if (output_index != INPUT_NUM) {
+        hw_ofm0[output_index][top->io_ofm_bits_addr][i] = TOP_OFM_DATA0_COL(i);
+        hw_ofm1[output_index][top->io_ofm_bits_addr][i] = TOP_OFM_DATA1_COL(i);
+      }
     }
   }
 
-  // cout << output_index << endl;
-
-  if (top->io_out_valid && output_index != MAT_SIZE * OUTPUT_NUM / 2) {
+  if (top->io_ofm_bits_addr == MAT_SIZE - 1) {
     output_index++;
-    // cout << output_index << endl;
   }
 
-  if (output_index == MAT_SIZE * OUTPUT_NUM / 2) {
+  if (output_index == INPUT_NUM) {
     Outputprint();
-    check_out();
+    check_ofm();
     sim_finish = 1;
   }
 
@@ -264,7 +242,7 @@ int main(int argc, char **argv, char **env) {
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);
   top->trace(tfp, 99);
-  tfp->open("./build/MeshTop/MeshTop.wave");
+  tfp->open("./build/Mesh/Mesh.wave");
 
   clock_t start, end;
   start = clock();
@@ -272,8 +250,6 @@ int main(int argc, char **argv, char **env) {
   // input init
   InputInit();
 
-  top->io_stop = 0;
-  top->io_w_finish = 0;
   // reset
   int n = 10;
   top->reset = 1;

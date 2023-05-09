@@ -5,9 +5,9 @@
 
 #define ACCEL_mesh_size 32
 
-#define ACCEL_ifm_w 34
-#define ACCEL_ifm_h 23
-#define ACCEL_ifm_c (ACCEL_mesh_size * 5)
+#define ACCEL_ifm_w 53
+#define ACCEL_ifm_h 56
+#define ACCEL_ifm_c (ACCEL_mesh_size * 14)
 
 #define ACCEL_data_max 30
 
@@ -19,7 +19,7 @@
 #define ACCEL_padding_top 0
 #define ACCEL_padding_down ACCEL_padding_top
 
-#define ACCEL_ofm_c (ACCEL_mesh_size * 4)
+#define ACCEL_ofm_c (ACCEL_mesh_size * 14)
 #define ACCEL_ofm_w ((ACCEL_ifm_w - ACCEL_kernel + 2 * ACCEL_padding_left) / ACCEL_stride + 1)
 #define ACCEL_ofm_h ((ACCEL_ifm_h - ACCEL_kernel + 2 * ACCEL_padding_top) / ACCEL_stride + 1)
 

@@ -2,9 +2,12 @@ import chisel3._
 import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.util._
 
-class ofm_data extends Bundle with mesh_config {
-  val data0    = UInt(pe_data_w.W)
-  val data1    = UInt(pe_data_w.W)
+class acc_data extends Bundle with mesh_config {
+  val data0 = UInt(pe_data_w.W)
+  val data1 = UInt(pe_data_w.W)
+}
+
+class ofm_data extends acc_data {
   val addr     = UInt(ofm_buffer_addr_w.W)
   val acc_last = Bool()
 }

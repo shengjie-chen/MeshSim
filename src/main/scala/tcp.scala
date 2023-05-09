@@ -287,7 +287,7 @@ class tcp extends Module with hw_config{
   accmem.get.io.stop := 0.B
   io.accmem_out.get <> accmem.get.io.out
   accmem.get.io.ofm <> mesh.get.io.ofm
-  accmem.get.io.last <> mesh.get.io.last_out
+//  accmem.get.io.last <> mesh.get.io.last_out
 
   /** ******************************************* fp32_cal *********************************************** */
 //  if(fp32_adder_sim && simMode){

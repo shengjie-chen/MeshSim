@@ -14,11 +14,15 @@ using namespace std;
 #define MAT_SIZE ACCEL_mesh_size
 
 // TOP IO PORT
+#define OUT_VALID_ADDRGAP ((uint64_t)&top->io_out_1_valid - (uint64_t)&top->io_out_0_valid)
+#define OUT_DATA_ADDRGAP ((uint64_t)&top->io_out_1_bits_data0 - (uint64_t)&top->io_out_0_bits_data0)
+
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
 #define TOP_W_BITS_COL(a) *(((IData *)&top->io_w_bits_0) + a)
-#define OUT_ADDR_D_GAP ((uint64_t)&top->io_out_bits_data0_1 - (uint64_t)&top->io_out_bits_data0_0)
-#define TOP_OUT_DATA0_COL(a) *(IData *)((uint64_t)&top->io_out_bits_data0_0 + OUT_ADDR_D_GAP * a)
-#define TOP_OUT_DATA1_COL(a) *(IData *)((uint64_t)&top->io_out_bits_data1_0 + OUT_ADDR_D_GAP * a)
+
+#define TOP_OUT_VALID_COL(a) *(CData *)((uint64_t)&top->io_out_0_valid + OUT_VALID_ADDRGAP * a)
+#define TOP_OUT_DATA0_COL(a) *(IData *)((uint64_t)&top->io_out_0_bits_data0 + OUT_DATA_ADDRGAP * a)
+#define TOP_OUT_DATA1_COL(a) *(IData *)((uint64_t)&top->io_out_0_bits_data1 + OUT_DATA_ADDRGAP * a)
 
 vluint64_t main_time = 0; // 当前仿真时间
 const vluint64_t sim_time = 2 * (5 + ACCEL_ifm_block_num_div2 * ACCEL_ofm_x_block_num) * MAT_SIZE +
@@ -307,7 +311,7 @@ void update_reg() {
 }
 
 void change_input() {
-  static int output_index = 0;
+  static int output_index[MAT_SIZE] = {0}; // output mat row index
 
   // change ifm
   if (ifm_hs_reg_r) {
@@ -320,21 +324,23 @@ void change_input() {
   }
 
   for (int i = 0; i < MAT_SIZE; i++) {
-    if (top->io_out_valid) {
-      hw_out[output_index / MAT_SIZE * 2][output_index % MAT_SIZE][i] = TOP_OUT_DATA0_COL(i);
-      hw_out[output_index / MAT_SIZE * 2 + 1][output_index % MAT_SIZE][i] = TOP_OUT_DATA1_COL(i);
+    if (TOP_OUT_VALID_COL(i)) {
+      hw_out[output_index[i] / MAT_SIZE * 2 + 0][output_index[i] % MAT_SIZE][i] =
+          TOP_OUT_DATA0_COL(i);
+      hw_out[output_index[i] / MAT_SIZE * 2 + 1][output_index[i] % MAT_SIZE][i] =
+          TOP_OUT_DATA1_COL(i);
+
+#ifdef DEBUG_MODE
+      if (i == MAT_SIZE - 1)
+        printf("output_index[%d]:%d\n", i, output_index[i]);
+#endif
+      if (output_index[i] != MAT_SIZE * ACCEL_ofm_block_num / 2) {
+        output_index[i]++;
+      }
     }
   }
 
-  // cout << output_index << endl;
-
-  if (top->io_out_valid && output_index != MAT_SIZE * ACCEL_ofm_block_num / 2) {
-    output_index++;
-    // if (output_index % ACCEL_mesh_size == 0)
-    //   cout << "[ log ] output_block_index: " << output_index / ACCEL_mesh_size << endl;
-  }
-
-  if (output_index == MAT_SIZE * ACCEL_ofm_block_num / 2) {
+  if (output_index[MAT_SIZE - 1] == MAT_SIZE * ACCEL_ofm_block_num / 2) {
     // Outputprint();
     check_out();
     sim_finish = 1;
@@ -344,7 +350,6 @@ void change_input() {
 }
 
 void one_clock() {
-  //  cout << "one_clock" << endl;
   change_input();
 
   top->clock = 0;

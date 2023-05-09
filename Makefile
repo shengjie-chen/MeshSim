@@ -1,4 +1,4 @@
-TOPNAME = Mesh
+TOPNAME = MeshTop
 TOPMODULE_GEN = $(TOPNAME)Gen
 # scala src dir
 SCALA_SRC_DIR = ./src/main/scala

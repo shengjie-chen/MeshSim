@@ -10,7 +10,7 @@ class MeshTop extends Module with mesh_config {
     val stop     = Input(Bool())
     val w_finish = Input(Bool())
 
-    val out = Valid(new ofm_data)
+    val out  = Vec(mesh_columns, Valid(new acc_data))
   })
 
   val mesh    = Module(new Mesh)
@@ -22,7 +22,6 @@ class MeshTop extends Module with mesh_config {
   mesh.io.stop     <> io.stop
   mesh.io.w_finish <> io.w_finish
 
-  acc_mem.io.last <> mesh.io.last_out
   acc_mem.io.ofm  <> mesh.io.ofm
   acc_mem.io.stop <> io.stop
 

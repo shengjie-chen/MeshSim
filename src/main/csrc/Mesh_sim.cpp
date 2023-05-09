@@ -15,14 +15,17 @@ using namespace std;
 #define MAT_SIZE ACCEL_mesh_size
 
 // TOP IO PORT
+#define OFM_VALID_ADDRGAP ((uint64_t)&top->io_ofm_1_valid - (uint64_t)&top->io_ofm_0_valid)
+#define OFM_ADDR_ADDRGAP ((uint64_t)&top->io_ofm_1_bits_addr - (uint64_t)&top->io_ofm_0_bits_addr)
+#define OFM_DATA_ADDRGAP ((uint64_t)&top->io_ofm_1_bits_data0 - (uint64_t)&top->io_ofm_0_bits_data0)
+
 #define TOP_IFM_BITS_ROW(a) *(((IData *)&top->io_ifm_bits_0) + a)
 #define TOP_W_BITS_COL(a) *(((IData *)&top->io_w_bits_0) + a)
-#define OFM_ADDR_V_GAP ((uint64_t)&top->io_ofm_1_valid - (uint64_t)&top->io_ofm_0_valid)
-#define TOP_OFM_VALID_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_valid + OFM_ADDR_V_GAP * i)
-#define TOP_OFM_ADDR_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_V_GAP * a)
-#define OFM_ADDR_D_GAP ((uint64_t)&top->io_ofm_1_bits_data0 - (uint64_t)&top->io_ofm_0_bits_data0)
-#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_ADDR_D_GAP * a)
-#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_ADDR_D_GAP * a)
+
+#define TOP_OFM_VALID_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_valid + OFM_VALID_ADDRGAP * a)
+#define TOP_OFM_ADDR_COL(a) *(CData *)((uint64_t)&top->io_ofm_0_bits_addr + OFM_ADDR_ADDRGAP * a)
+#define TOP_OFM_DATA0_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data0 + OFM_DATA_ADDRGAP * a)
+#define TOP_OFM_DATA1_COL(a) *(IData *)((uint64_t)&top->io_ofm_0_bits_data1 + OFM_DATA_ADDRGAP * a)
 
 vluint64_t main_time = 0; // 当前仿真时间
 const vluint64_t sim_time =
@@ -245,7 +248,7 @@ void one_clock() {
 }
 
 int main(int argc, char **argv, char **env) {
-  // srand((unsigned)time(NULL));
+  srand((unsigned)time(NULL));
 
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);

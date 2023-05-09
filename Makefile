@@ -1,4 +1,4 @@
-TOPNAME = MeshTop
+TOPNAME = Mesh
 TOPMODULE_GEN = $(TOPNAME)Gen
 # scala src dir
 SCALA_SRC_DIR = ./src/main/scala
@@ -39,8 +39,8 @@ verilog: set_para
 sim_vcd: verilog
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
-	@# verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD)) --LDFLAGS -fsanitize=address # -CFLAGS -fsanitize=address
-	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD)) --LDFLAGS -mcmodel=large -CFLAGS -mcmodel=large
+	@#verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD)) # --LDFLAGS -fsanitize=address -CFLAGS -fsanitize=address
+	verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD))
 	$(BIN_VCD)
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 

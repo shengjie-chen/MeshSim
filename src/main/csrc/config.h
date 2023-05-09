@@ -5,8 +5,8 @@
 
 #define ACCEL_mesh_size 32
 
-#define ACCEL_ifm_w 43
-#define ACCEL_ifm_h 43
+#define ACCEL_ifm_w 34
+#define ACCEL_ifm_h 23
 #define ACCEL_ifm_c (ACCEL_mesh_size * 5)
 
 #define ACCEL_data_max 30

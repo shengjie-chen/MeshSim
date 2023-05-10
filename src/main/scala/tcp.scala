@@ -12,15 +12,17 @@ class tcp extends Module with hw_config{
     val axi_dma_1 = if(!simMode) Some(new axi_full_io(dma_ch_width,dmaAddrWidth,dmaDataWidth)) else None
     //intr
     val alu_mat_task_done = Output(Bool())
+//    val pool_task_done = Output(Bool())
+    val gemm_task_done = Output(Bool())
     //axi_lite
     val accel_axi_lite = if(!simMode) Some(new axi_lite_io(ACCEL_AXI_DATA_WIDTH,ACCEL_AXI_ADDR_WIDTH)) else None
 
     /********************************************* simulation ************************************************/
     //dma_sim
-    val dma_ch0_r = if (simMode) Some(new dmaR_io(dmaAddrWidth, dmaDataWidth)) else None
-    val dma_ch0_w = if (simMode) Some(new dmaW_io(dmaAddrWidth, dmaDataWidth)) else None
-    val dma_ch1_r = if (simMode) Some(new dmaR_io(dmaAddrWidth, dmaDataWidth)) else None
-    val dma_ch1_w = if (simMode) Some(new dmaW_io(dmaAddrWidth, dmaDataWidth)) else None
+    val dma_ch0_r = if (simMode & dma_en) Some(new dmaR_io(dmaAddrWidth, dmaDataWidth)) else None
+    val dma_ch0_w = if (simMode & dma_en) Some(new dmaW_io(dmaAddrWidth, dmaDataWidth)) else None
+    val dma_ch1_r = if (simMode & dma_en) Some(new dmaR_io(dmaAddrWidth, dmaDataWidth)) else None
+    val dma_ch1_w = if (simMode & dma_en) Some(new dmaW_io(dmaAddrWidth, dmaDataWidth)) else None
     val sim_accel_reg = if(simMode) Some(new regPort(dmaAddrWidth)) else None
     //math_sim
     val alu_math_task_done = if (simMode) Some(Output(Bool())) else None
@@ -38,17 +40,13 @@ class tcp extends Module with hw_config{
     val ifm_odata = if(ifmbuf_sim && simMode && !accmem_sim) Some(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W)))) else None
     val ifm_task_done  = if(ifmbuf_sim && simMode && !accmem_sim) Some(Output(Bool())) else None
     // accmem_sim
-    val accmem_out = if(simMode && accmem_sim) Some(Valid(new ofm_data)) else None
-
+    val accmem_out = if(simMode && accmem_sim) Some(Vec(mesh_columns, Valid(new acc_data))) else None
+    //ofmbuf_sim
+    val ofmbuf_idata = if(simMode && (ofmbuf_sim|opfusion_sim)) Some(Flipped(Valid(Vec(64, UInt(32.W))))) else None
+    val gemm_stop = if(simMode && ofmbuf_sim) Some(Output(Bool())) else None
     //opfusion_sim
-//    val opfusion_i_data = if(simMode && opfusion_sim) Some(Input(UInt(1024.W))) else None
-//    val opfusion_i_valid = if(simMode && opfusion_sim) Some(Input(Bool())) else None
-//    val opfusion_o_ifm_int8 = if(simMode && opfusion_sim) Some(Output(UInt(256.W))) else None
-//    val opfusion_o_ifm_fp32 = if(simMode && opfusion_sim) Some(Output(UInt(1024.W))) else None
-//    val opfusion_o_mat32 = if(simMode && opfusion_sim) Some(Output(UInt(1024.W))) else None
-//    val opfusion_o_valid = if(simMode && opfusion_sim) Some(Output(Bool())) else None
-//    val opfusion_o_ready = if(simMode && opfusion_sim) Some(Output(Bool())) else None
-//    val opfusion_cur_c_index = if(simMode && opfusion_sim) Some(Input(UInt(6.W))) else None
+//    val opfusion_idata = if(simMode && opfusion_sim) Some(Flipped(Valid(Vec(64, UInt(32.W))))) else None
+    val opfusion_ready = if(simMode && opfusion_sim) Some(Output(Bool())) else None
     //fp32_sim
 //    val fp32_a = if ((fp32_adder_sim | fp32_multiplier_sim) & simMode) Some(Input(UInt(32.W))) else None
 //    val fp32_b = if ((fp32_adder_sim | fp32_multiplier_sim) & simMode) Some(Input(UInt(32.W))) else None
@@ -82,6 +80,57 @@ class tcp extends Module with hw_config{
     dma_ch1.get.io.dmaW <> io.dma_ch1_w.get
   }
 
+  if (dma_en & !alu_mat_en) {
+    dma_ch0.get.io.aluRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch1.get.io.aluRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch0.get.io.aluWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch1.get.io.aluWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch0.get.io.aluWData.get.data := 0.U
+    dma_ch1.get.io.aluWData.get.data := 0.U
+  }
+  if(dma_en & !pool_en) {
+    dma_ch0.get.io.poolRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch0.get.io.poolWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch1.get.io.poolRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch1.get.io.poolWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    dma_ch0.get.io.poolWData.get.data := 0.U
+    dma_ch1.get.io.poolWData.get.data := 0.U
+  }
+
+  dma_ch1.get.io.opfusionWData.get.data := 0.U
+  dma_ch1.get.io.opfusionWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  if(dma_en & !gemm_en){
+    if(simMode){
+      if (!im2col_sim) {
+        dma_ch0.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      }
+      if (!wgtbuf_sim) {
+        dma_ch1.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      }
+      if (!ofmbuf_sim) {
+        dma_ch0.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+        dma_ch1.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+        dma_ch0.get.io.gemmWData.get.data := 0.U
+        dma_ch1.get.io.gemmWData.get.data := 0.U
+      }
+      if (!opfusion_sim) {
+        dma_ch1.get.io.opfusionRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+        dma_ch1.get.io.opfusionWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      }
+    }
+    else{
+      dma_ch0.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      dma_ch0.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      dma_ch1.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      dma_ch1.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+      dma_ch0.get.io.gemmWData.get.data := 0.U
+      dma_ch1.get.io.gemmWData.get.data := 0.U
+
+      dma_ch1.get.io.opfusionRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+
+    }
+  }
+
   /********************************************* axi-lite ************************************************/
   val regMap = Module(new regMap)
   if(!simMode) {
@@ -89,37 +138,48 @@ class tcp extends Module with hw_config{
     axi_lite_accel.io.S <> io.accel_axi_lite.get
     axi_lite_accel.io.S_AXI_ACLK <> clock
     axi_lite_accel.io.S_AXI_ARESETN <> ~reset.asBool
-    regMap.io.regPort.shape_bc0_reg := axi_lite_accel.io.o_slv.reg0
-    regMap.io.regPort.shape_wh0_reg := axi_lite_accel.io.o_slv.reg1
-    regMap.io.regPort.shape_cstep0_reg := axi_lite_accel.io.o_slv.reg2
-    regMap.io.regPort.shape_bc1_reg := axi_lite_accel.io.o_slv.reg3
-    regMap.io.regPort.shape_wh1_reg := axi_lite_accel.io.o_slv.reg4
-    regMap.io.regPort.shape_cstep1_reg := axi_lite_accel.io.o_slv.reg5
-    regMap.io.regPort.src0_addr0_reg := axi_lite_accel.io.o_slv.reg6
-    regMap.io.regPort.src1_addr0_reg := axi_lite_accel.io.o_slv.reg7
-    regMap.io.regPort.dst_addr0_reg := axi_lite_accel.io.o_slv.reg8
-    regMap.io.regPort.src0_addr1_reg := axi_lite_accel.io.o_slv.reg9
-    regMap.io.regPort.src1_addr1_reg := axi_lite_accel.io.o_slv.reg10
-    regMap.io.regPort.dst_addr1_reg := axi_lite_accel.io.o_slv.reg11
-    regMap.io.regPort.alu_ctrl_reg := axi_lite_accel.io.o_slv.reg12
-    regMap.io.regPort.alu_veclen0_reg := axi_lite_accel.io.o_slv.reg13
-    regMap.io.regPort.alu_veclen1_reg := axi_lite_accel.io.o_slv.reg14
-    regMap.io.regPort.pool_ctrl_reg := axi_lite_accel.io.o_slv.reg15
-    regMap.io.regPort.gemm_ctrl_reg := axi_lite_accel.io.o_slv.reg16
-    regMap.io.regPort.opfusion_ctrl_reg := axi_lite_accel.io.o_slv.reg17
-    regMap.io.regPort.quant_scale_reg := axi_lite_accel.io.o_slv.reg18
-    regMap.io.regPort.dequant_scale_reg := axi_lite_accel.io.o_slv.reg19
-    regMap.io.regPort.requant_scale_reg := axi_lite_accel.io.o_slv.reg20
-    regMap.io.regPort.bias_addr_reg := axi_lite_accel.io.o_slv.reg21
-    regMap.io.regPort.leakyrelu_param_reg := axi_lite_accel.io.o_slv.reg22
+    regMap.io.regPort.shape_src_bc0_reg := axi_lite_accel.io.o_slv.reg0
+    regMap.io.regPort.shape_src_wh0_reg := axi_lite_accel.io.o_slv.reg1
+    regMap.io.regPort.shape_src_cstep0_reg := axi_lite_accel.io.o_slv.reg2
+    regMap.io.regPort.shape_src_bc1_reg := axi_lite_accel.io.o_slv.reg3
+    regMap.io.regPort.shape_src_wh1_reg := axi_lite_accel.io.o_slv.reg4
+    regMap.io.regPort.shape_src_cstep1_reg := axi_lite_accel.io.o_slv.reg5
+    regMap.io.regPort.shape_dst_bc0_reg := axi_lite_accel.io.o_slv.reg6
+    regMap.io.regPort.shape_dst_wh0_reg := axi_lite_accel.io.o_slv.reg7
+    regMap.io.regPort.shape_dst_cstep0_reg := axi_lite_accel.io.o_slv.reg8
+    regMap.io.regPort.shape_dst_bc1_reg := axi_lite_accel.io.o_slv.reg9
+    regMap.io.regPort.shape_dst_wh1_reg := axi_lite_accel.io.o_slv.reg10
+    regMap.io.regPort.shape_dst_cstep1_reg := axi_lite_accel.io.o_slv.reg11
+    regMap.io.regPort.src0_addr0_reg := axi_lite_accel.io.o_slv.reg12
+    regMap.io.regPort.src1_addr0_reg := axi_lite_accel.io.o_slv.reg13
+    regMap.io.regPort.dst_addr0_reg := axi_lite_accel.io.o_slv.reg14
+    regMap.io.regPort.src0_addr1_reg := axi_lite_accel.io.o_slv.reg15
+    regMap.io.regPort.src1_addr1_reg := axi_lite_accel.io.o_slv.reg16
+    regMap.io.regPort.dst_addr1_reg := axi_lite_accel.io.o_slv.reg17
+    regMap.io.regPort.alu_ctrl_reg := axi_lite_accel.io.o_slv.reg18
+    regMap.io.regPort.alu_veclen0_reg := axi_lite_accel.io.o_slv.reg19
+    regMap.io.regPort.alu_veclen1_reg := axi_lite_accel.io.o_slv.reg20
+    regMap.io.regPort.pool_ctrl_reg := axi_lite_accel.io.o_slv.reg21
+    regMap.io.regPort.gemm_ctrl_reg := axi_lite_accel.io.o_slv.reg22
+    regMap.io.regPort.quant_scale_reg := axi_lite_accel.io.o_slv.reg23
+    regMap.io.regPort.dequant_scale_reg := axi_lite_accel.io.o_slv.reg24
+    regMap.io.regPort.requant_scale_reg := axi_lite_accel.io.o_slv.reg25
+    regMap.io.regPort.bias_addr_reg := axi_lite_accel.io.o_slv.reg26
+    regMap.io.regPort.leakyrelu_param_reg := axi_lite_accel.io.o_slv.reg27
   }
   else{
-    regMap.io.regPort.shape_bc0_reg := io.sim_accel_reg.get.shape_bc0_reg
-    regMap.io.regPort.shape_wh0_reg := io.sim_accel_reg.get.shape_wh0_reg
-    regMap.io.regPort.shape_cstep0_reg := io.sim_accel_reg.get.shape_cstep0_reg
-    regMap.io.regPort.shape_bc1_reg := io.sim_accel_reg.get.shape_bc1_reg
-    regMap.io.regPort.shape_wh1_reg := io.sim_accel_reg.get.shape_wh1_reg
-    regMap.io.regPort.shape_cstep1_reg := io.sim_accel_reg.get.shape_cstep1_reg
+    regMap.io.regPort.shape_src_bc0_reg := io.sim_accel_reg.get.shape_src_bc0_reg
+    regMap.io.regPort.shape_src_wh0_reg := io.sim_accel_reg.get.shape_src_wh0_reg
+    regMap.io.regPort.shape_src_cstep0_reg := io.sim_accel_reg.get.shape_src_cstep0_reg
+    regMap.io.regPort.shape_src_bc1_reg := io.sim_accel_reg.get.shape_src_bc1_reg
+    regMap.io.regPort.shape_src_wh1_reg := io.sim_accel_reg.get.shape_src_wh1_reg
+    regMap.io.regPort.shape_src_cstep1_reg := io.sim_accel_reg.get.shape_src_cstep1_reg
+    regMap.io.regPort.shape_dst_bc0_reg := io.sim_accel_reg.get.shape_dst_bc0_reg
+    regMap.io.regPort.shape_dst_wh0_reg := io.sim_accel_reg.get.shape_dst_wh0_reg
+    regMap.io.regPort.shape_dst_cstep0_reg := io.sim_accel_reg.get.shape_dst_cstep0_reg
+    regMap.io.regPort.shape_dst_bc1_reg := io.sim_accel_reg.get.shape_dst_bc1_reg
+    regMap.io.regPort.shape_dst_wh1_reg := io.sim_accel_reg.get.shape_dst_wh1_reg
+    regMap.io.regPort.shape_dst_cstep1_reg := io.sim_accel_reg.get.shape_dst_cstep1_reg
     regMap.io.regPort.src0_addr0_reg := io.sim_accel_reg.get.src0_addr0_reg
     regMap.io.regPort.src1_addr0_reg := io.sim_accel_reg.get.src1_addr0_reg
     regMap.io.regPort.dst_addr0_reg := io.sim_accel_reg.get.dst_addr0_reg
@@ -131,13 +191,13 @@ class tcp extends Module with hw_config{
     regMap.io.regPort.alu_veclen1_reg := io.sim_accel_reg.get.alu_veclen1_reg
     regMap.io.regPort.pool_ctrl_reg := io.sim_accel_reg.get.pool_ctrl_reg
     regMap.io.regPort.gemm_ctrl_reg := io.sim_accel_reg.get.gemm_ctrl_reg
-    regMap.io.regPort.opfusion_ctrl_reg := io.sim_accel_reg.get.opfusion_ctrl_reg
     regMap.io.regPort.quant_scale_reg := io.sim_accel_reg.get.quant_scale_reg
     regMap.io.regPort.dequant_scale_reg := io.sim_accel_reg.get.dequant_scale_reg
     regMap.io.regPort.requant_scale_reg := io.sim_accel_reg.get.requant_scale_reg
     regMap.io.regPort.bias_addr_reg := io.sim_accel_reg.get.bias_addr_reg
     regMap.io.regPort.leakyrelu_param_reg := io.sim_accel_reg.get.leakyrelu_param_reg
   }
+
   /********************************************* math ************************************************/
   if(simMode){
     val alu_func = Module(new alu_math)
@@ -182,14 +242,49 @@ class tcp extends Module with hw_config{
     alu_mat.get.io.alu_veclen_0 := regMap.io.alu_veclen_0
     alu_mat.get.io.alu_veclen_1 := regMap.io.alu_veclen_1
   }
-  else{
-    dma_ch0.get.io.aluRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch0.get.io.aluWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch1.get.io.aluRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch1.get.io.aluWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch0.get.io.aluWData.get.data := 0.U
-    dma_ch1.get.io.aluWData.get.data := 0.U
-  }
+
+  /** ******************************************* pool *********************************************** */
+//  val pool = if (pool_en) Some(Module(new pool)) else None
+//  io.pool_task_done := (if (pool_en) pool.get.io.task_done else 0.U)
+//  if (pool_en) {
+//    pool.get.io.shape0 := regMap.io.ch0_src_whc
+//    pool.get.io.shape1 := regMap.io.ch1_src_whc
+//    pool.get.io.src0_addr0 := regMap.io.ch0_src0_addr
+//    pool.get.io.dst_addr0 := regMap.io.ch0_dst_addr
+//    pool.get.io.src0_addr1 := regMap.io.ch1_src0_addr
+//    pool.get.io.dst_addr1 := regMap.io.ch1_dst_addr
+//    pool.get.io.en := regMap.io.pool_en
+//    pool.get.io.pool_type := regMap.io.pool_type
+//    pool.get.io.channels := regMap.io.pool_channels
+//    pool.get.io.kernel_w := regMap.io.pool_kernel_w
+//    pool.get.io.kernel_h := regMap.io.pool_kernel_h
+//    pool.get.io.stride_w := regMap.io.pool_stride_w
+//    pool.get.io.stride_h := regMap.io.pool_stride_h
+//    pool.get.io.pad_mode := regMap.io.pool_pad_mode
+//    pool.get.io.pad_left := regMap.io.pool_pad_left
+//    pool.get.io.pad_right := regMap.io.pool_pad_right
+//    pool.get.io.pad_top := regMap.io.pool_pad_top
+//    pool.get.io.pad_bottom := regMap.io.pool_pad_bottom
+//
+//    pool.get.io.ch0_rid := dma_ch0.get.io.rid
+//    pool.get.io.ch0_rbusy := dma_ch0.get.io.dmaRbusy
+//    pool.get.io.ch0_rareq <> dma_ch0.get.io.poolRAreq.get
+//    pool.get.io.ch0_rdata <> dma_ch0.get.io.poolRData.get
+//    pool.get.io.ch1_rid := dma_ch1.get.io.rid
+//    pool.get.io.ch1_rbusy := dma_ch1.get.io.dmaRbusy
+//    pool.get.io.ch1_rareq <> dma_ch1.get.io.poolRAreq.get
+//    pool.get.io.ch1_rdata <> dma_ch1.get.io.poolRData.get
+//
+//    pool.get.io.ch0_wid := dma_ch0.get.io.wid
+//    pool.get.io.ch0_wbusy := dma_ch0.get.io.dmaWbusy
+//    pool.get.io.ch0_wareq <> dma_ch0.get.io.poolWAreq.get
+//    pool.get.io.ch0_wdata <> dma_ch0.get.io.poolWData.get
+//    pool.get.io.ch1_wid := dma_ch1.get.io.wid
+//    pool.get.io.ch1_wbusy := dma_ch1.get.io.dmaWbusy
+//    pool.get.io.ch1_wareq <> dma_ch1.get.io.poolWAreq.get
+//    pool.get.io.ch1_wdata <> dma_ch1.get.io.poolWData.get
+//  }
+
 
   /** ******************************************* im2col *********************************************** */
   val im2col = if (gemm_en || (im2col_sim & simMode)) Some(Module(new im2col)) else None
@@ -199,8 +294,8 @@ class tcp extends Module with hw_config{
     im2col.get.io.dma_ch0_rdata <> dma_ch0.get.io.gemmRData.get
     im2col.get.io.dma_ch0_rareq <> dma_ch0.get.io.gemmRAreq.get
 
-    im2col.get.io.ch0_whc := regMap.io.ch0_whc
-    im2col.get.io.ch0_cstep := regMap.io.ch0_cstep
+    im2col.get.io.ch0_whc := regMap.io.ch0_src_whc
+    im2col.get.io.ch0_cstep := regMap.io.ch0_src_cstep
     im2col.get.io.im2col_en := regMap.io.gemm_en
     im2col.get.io.quant_scale := regMap.io.quant_scale
     im2col.get.io.ch0_src0_addr := regMap.io.ch0_src0_addr
@@ -211,20 +306,14 @@ class tcp extends Module with hw_config{
       io.ifm_mem_read_port1.get <> im2col.get.io.ifm_read_port1
       io.im2col_task_done.get := im2col.get.io.task_done
     }
-//    else{
-//
-//    }
-  }
-  else {
-    dma_ch0.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
 
   /********************************************* weight_buffer ************************************************/
   val wgtBuf = if(gemm_en || (wgtbuf_sim & simMode)) Some(Module(new weightBuffer)) else None
   if(gemm_en || (wgtbuf_sim & simMode)) {
-    wgtBuf.get.io.wgt_en := regMap.io.gemm_en  //后面要改
-    wgtBuf.get.io.ofm_whc := regMap.io.ofm_whc
-    wgtBuf.get.io.ic := regMap.io.ch0_whc.c
+    wgtBuf.get.io.wgt_en := (if(gemm_en) 0.U else regMap.io.gemm_en)  //后面要改
+    wgtBuf.get.io.ofm_whc := regMap.io.ch0_dst_whc
+    wgtBuf.get.io.ic := regMap.io.ch0_src_whc.c
     wgtBuf.get.io.kernel := regMap.io.kernel
     wgtBuf.get.io.wgt_baseaddr := regMap.io.ch1_src0_addr
 
@@ -233,22 +322,12 @@ class tcp extends Module with hw_config{
     wgtBuf.get.io.dma_rdata <> dma_ch1.get.io.gemmRData.get
     wgtBuf.get.io.dma_rareq <> dma_ch1.get.io.gemmRAreq.get
 
-    if(wgtbuf_sim & simMode && !accmem_sim) {
+    if (wgtbuf_sim & simMode && !accmem_sim) {
       io.wgt_odata.get <> wgtBuf.get.io.o_data
-      if(!ifmbuf_sim){
-        io.wgt_task_done.get := RegNext(wgtBuf.get.io.last)
-      }
     }
-  }
-  else {
-    dma_ch1.get.io.gemmRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-  }
-
-  if(simMode & (wgtbuf_sim | im2col_sim)){
-    dma_ch0.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch0.get.io.gemmWData.get.data := 0.U
-    dma_ch1.get.io.gemmWAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
-    dma_ch1.get.io.gemmWData.get.data := 0.U
+    if (wgtbuf_sim & simMode && !ifmbuf_sim) {
+      io.wgt_task_done.get := RegNext(wgtBuf.get.io.last)
+    }
   }
 
   /** ******************************************* ifm_buffer *********************************************** */
@@ -262,8 +341,8 @@ class tcp extends Module with hw_config{
     ifmBuffer.get.io.padding_right := regMap.io.padding_down
     ifmBuffer.get.io.padding_top := regMap.io.padding_top
     ifmBuffer.get.io.padding_down := regMap.io.padding_down
-    ifmBuffer.get.io.ifm_size := regMap.io.ch0_whc
-    ifmBuffer.get.io.ofm_size := regMap.io.ofm_whc
+    ifmBuffer.get.io.ifm_size := regMap.io.ch0_src_whc
+    ifmBuffer.get.io.ofm_size := regMap.io.ch0_dst_whc
 
     ifmBuffer.get.io.ifm_read_port0 <> im2col.get.io.ifm_read_port0
     ifmBuffer.get.io.ifm_read_port1 <> im2col.get.io.ifm_read_port1
@@ -271,23 +350,89 @@ class tcp extends Module with hw_config{
 
     if(ifmbuf_sim && simMode && !accmem_sim) io.ifm_odata.get <> ifmBuffer.get.io.ifm
     if(ifmbuf_sim && simMode && !accmem_sim) io.ifm_task_done.get := ShiftRegister(wgtBuf.get.io.last,32)
-    //    io.ifm_last.get := ifmBuffer.get.io.last_in
-//    dontTouch(ifmBuffer.get.io.last_in)
   }
 
   /** ******************************************* mesh accmem *********************************************** */
   val mesh = if(gemm_en || (accmem_sim & simMode)) Some(Module(new Mesh)) else None
   val accmem = if(gemm_en || (accmem_sim & simMode)) Some(Module(new AccMem)) else None
-  mesh.get.io.w <> wgtBuf.get.io.o_data
-  mesh.get.io.ifm <> ifmBuffer.get.io.ifm
-  mesh.get.io.stop := 0.B
-  mesh.get.io.w_finish <> wgtBuf.get.io.last
-  mesh.get.io.last_in <> ifmBuffer.get.io.last_in
+  if(gemm_en || (accmem_sim & simMode)){
+    mesh.get.io.w <> wgtBuf.get.io.o_data
+    mesh.get.io.ifm <> ifmBuffer.get.io.ifm
+    mesh.get.io.stop := 0.B
+    mesh.get.io.w_finish <> wgtBuf.get.io.last
+    mesh.get.io.last_in <> ifmBuffer.get.io.last_in
 
-  accmem.get.io.stop := 0.B
-  io.accmem_out.get <> accmem.get.io.out
-  accmem.get.io.ofm <> mesh.get.io.ofm
-//  accmem.get.io.last <> mesh.get.io.last_out
+    accmem.get.io.stop := 0.B
+    accmem.get.io.ofm <> mesh.get.io.ofm
+    io.accmem_out.get <> accmem.get.io.out
+  }
+
+  /** ******************************************* opfusion *********************************************** */
+  val opfusion = if (gemm_en || (opfusion_sim & simMode)) Some(Module(new opfusion)) else None
+  if (gemm_en || (opfusion_sim & simMode)) {
+    opfusion.get.io.en := regMap.io.gemm_en
+    opfusion.get.io.i_mode := regMap.io.gemm_format
+    opfusion.get.io.i_oscale := regMap.io.dequant_scale
+    opfusion.get.io.i_bias := regMap.io.bias_addr
+    opfusion.get.io.i_bias_en := regMap.io.bias_en
+    opfusion.get.io.i_act_mode := regMap.io.activate_type
+    opfusion.get.io.i_leakyrelu_param := regMap.io.leakyrelu_param
+    opfusion.get.io.i_rescale := regMap.io.requant_scale
+    opfusion.get.io.i_rescale_en := regMap.io.requant_en
+    opfusion.get.io.ofm_whc := regMap.io.ch0_dst_whc
+
+    opfusion.get.io.dma_rid <> dma_ch1.get.io.rid
+    opfusion.get.io.dma_rbusy <> dma_ch1.get.io.dmaRbusy
+    opfusion.get.io.dma_rareq <> dma_ch1.get.io.opfusionRAreq.get
+    opfusion.get.io.dma_rdata <> dma_ch1.get.io.opfusionRData.get
+
+    if (opfusion_sim & simMode) {
+      for (i <- 0 until 32) {
+        opfusion.get.io.i_data(i).bits := ShiftRegister(io.ofmbuf_idata.get.bits(i), i)
+        opfusion.get.io.i_data(i).valid := ShiftRegister(io.ofmbuf_idata.get.valid, i)
+        opfusion.get.io.i_data(i + 32).bits := ShiftRegister(io.ofmbuf_idata.get.bits(i + 32), i)
+        opfusion.get.io.i_data(i + 32).valid := ShiftRegister(io.ofmbuf_idata.get.valid, i)
+      }
+      io.opfusion_ready.get := ShiftRegister(opfusion.get.io.o_ready,32) & opfusion.get.io.o_ready
+    }
+    if(simMode & opfusion_sim & !ofmbuf_sim){
+      dontTouch(opfusion.get.io.o_data)
+    }
+  }
+
+  /** ******************************************* ofm_buffer *********************************************** */
+  val ofmBuf = if(gemm_en || (ofmbuf_sim & simMode)) Some(Module(new ofmbuffer)) else None
+  io.gemm_task_done := (if(gemm_en || (ofmbuf_sim & simMode)) ofmBuf.get.io.task_done else 0.U)
+  if(gemm_en || (ofmbuf_sim & simMode)){
+    ofmBuf.get.io.en := (if(gemm_en | opfusion_sim) opfusion.get.io.o_ready else regMap.io.gemm_en)
+    ofmBuf.get.io.ofm_whc := regMap.io.ch0_dst_whc
+    ofmBuf.get.io.ofm_cstep := regMap.io.ch0_dst_cstep
+    ofmBuf.get.io.ofm_dma_addr := regMap.io.ch0_dst_addr
+
+    ofmBuf.get.io.dma_ch0_wid := dma_ch0.get.io.wid
+    ofmBuf.get.io.dma_ch0_wbusy := dma_ch0.get.io.dmaWbusy
+    ofmBuf.get.io.dma_ch0_wdata <> dma_ch0.get.io.gemmWData.get
+    ofmBuf.get.io.dma_ch0_wareq <> dma_ch0.get.io.gemmWAreq.get
+    ofmBuf.get.io.dma_ch1_wid := dma_ch1.get.io.wid
+    ofmBuf.get.io.dma_ch1_wbusy := dma_ch1.get.io.dmaWbusy
+    ofmBuf.get.io.dma_ch1_wdata <> dma_ch1.get.io.gemmWData.get
+    ofmBuf.get.io.dma_ch1_wareq <> dma_ch1.get.io.gemmWAreq.get
+
+    if(ofmbuf_sim & simMode & !opfusion_sim){
+      for(i <- 0 until 32){
+        ofmBuf.get.io.data_in(i).bits := ShiftRegister(io.ofmbuf_idata.get.bits(i),i)
+        ofmBuf.get.io.data_in(i).valid := ShiftRegister(io.ofmbuf_idata.get.valid,i)
+        ofmBuf.get.io.data_in(i+32).bits := ShiftRegister(io.ofmbuf_idata.get.bits(i+32),i)
+        ofmBuf.get.io.data_in(i+32).valid := ShiftRegister(io.ofmbuf_idata.get.valid,i)
+      }
+    }
+    if(gemm_en | opfusion_sim){
+      ofmBuf.get.io.data_in := opfusion.get.io.o_data
+    }
+    if(!gemm_en){
+      io.gemm_stop.get := ofmBuf.get.io.gemm_stop
+    }
+  }
 
   /** ******************************************* fp32_cal *********************************************** */
 //  if(fp32_adder_sim && simMode){
@@ -306,38 +451,6 @@ class tcp extends Module with hw_config{
 //    io.fp32_c.get := RegNext(fp32_multiplier.io.z)
 //    io.fp32_test_valid.get := RegNext(io.fp32_en.get)
 //    io.fp32_test_done.get := fallEdge(io.fp32_test_valid.get)
-//  }
-
-  /** ******************************************* opfusion *********************************************** */
-//  val opfusion = if(opfusion_en) Some(Module(new opfusion)) else None
-//  if(opfusion_en){
-//    opfusion.get.io.i_start := regMap.io.gemm_en
-//    opfusion.get.io.i_mode := regMap.io.gemm_format
-//    opfusion.get.io.i_oscale := regMap.io.dequant_scale
-//    opfusion.get.io.i_bias := regMap.io.bias_addr
-//    opfusion.get.io.i_bias_en := regMap.io.bias_en
-//    opfusion.get.io.i_act_mode := regMap.io.activate_type
-//    opfusion.get.io.i_leakyrelu_param := regMap.io.leakyrelu_param
-//    opfusion.get.io.i_rescale := regMap.io.requant_scale
-//    opfusion.get.io.i_rescale_en := regMap.io.requant_en
-//    opfusion.get.io.i_oc := regMap.io.ofm_whc.c
-//
-//    opfusion.get.io.dma_rid := dma_ch1.get.io.rid
-//    opfusion.get.io.dma_rbusy := dma_ch1.get.io.dmaRbusy
-//    opfusion.get.io.dma_rdata <> dma_ch1.get.io.opfusionRData.get
-//    opfusion.get.io.dma_rareq <> dma_ch1.get.io.opfusionRAreq.get
-//
-//    opfusion.get.io.i_data := io.opfusion_i_data.get
-//    opfusion.get.io.i_valid := io.opfusion_i_valid.get
-//    io.opfusion_o_ifm_int8.get := opfusion.get.io.o_ifm_int8
-//    io.opfusion_o_ifm_fp32.get := opfusion.get.io.o_ifm_fp32
-//    io.opfusion_o_mat32.get := opfusion.get.io.o_mat32
-//    io.opfusion_o_valid.get := opfusion.get.io.o_valid
-//    io.opfusion_o_ready.get := opfusion.get.io.o_ready
-//    opfusion.get.io.cur_c_index := io.opfusion_cur_c_index.get
-//  }
-//  else {
-//    dma_ch1.get.io.opfusionRAreq.get <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
 //  }
 }
 

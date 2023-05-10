@@ -7,9 +7,9 @@ trait dma_config{
   val dmaAddrWidth = if (simMode) 64 else 32
   val dmaSizeWidth = 32
   val dmaDataWidth = 128
-  val id = Map("alu"->1,"gemm"->2,"pool"->3)
-  val dma_ch0_en_cfg = Map("alu"->true,"gemm"->true,"pool"->false)
-  val dma_ch1_en_cfg = Map("alu"->true,"gemm"->true,"pool"->false)
+  val id = Map("alu"->1,"gemm"->2,"pool"->3,"opfusion"->4)
+  val dma_ch0_en_cfg = Map("alu"->true,"gemm"->true,"pool"->true,"opfusion"->false)
+  val dma_ch1_en_cfg = Map("alu"->true,"gemm"->true,"pool"->true,"opfusion"->true)
   val dma_ch_width = 2
 }
 
@@ -17,7 +17,10 @@ trait buffer_config {
   val ifm_buffer_size =  65536   //2MB
   val ifm_buffer_width = 256     //64Bytes
   val wgt_buffer_width = 8*32
-  val wgt_buffer_size = 16*1024
+  val wgt_buffer_size = 16*1024 //512KB*2
+  val ofm_buffer_size = 1024      //128KB
+  val bias_buffer_size = 256
+  val oscale_buffer_size = 256
 }
 
 trait hw_config extends dma_config with buffer_config with mesh_config{
@@ -25,19 +28,26 @@ trait hw_config extends dma_config with buffer_config with mesh_config{
   val ACCEL_AXI_ADDR_WIDTH = 7
   val MATH_AXI_DATA_WIDTH = 32
   val MATH_AXI_ADDR_WIDTH = 4
-  val alu_mathfunc_en = false
+  val alu_mathfunc_en = true
   val alu_mat_en = true
   val pool_en = false
-  val gemm_en = false
-  val fp32_adder_sim = false
-  val fp32_multiplier_sim = false
-  val opfusion_sim = false
-  val im2col_sim = true
-  val wgtbuf_sim = true
-  val ifmbuf_sim = true
-  val accmem_sim = true
+  val gemm_en = false   //when simulation gemm_en, im2col_sim = wgtbuf_sim = ifmbuf_sim = accmem_sim = opfusion_sim = ofmbuf_sim = 0
 
-  val dma_en = alu_mat_en || pool_en || gemm_en || im2col_sim || wgtbuf_sim
+  val im2col_sim = true   //when only simulation im2col or wgtbuf, if im2col_sim ^ wgtbuf_sim = 1
+  val wgtbuf_sim = true
+  val ifmbuf_sim = true   //when simulation ifmbuf, if im2col_sim = wgtbuf_sim = 1
+  val accmem_sim = true   //when simulation accmem, if im2col_sim = wgtbuf_sim =  ifmbuf_sim = 1
+  val opfusion_sim = false   //when simulation opfusion, if im2col_sim = wgtbuf_sim =  ifmbuf_sim =  accmem_sim = 1
+  val ofmbuf_sim = false      //when simulation ofmbuf, if im2col_sim = wgtbuf_sim =  ifmbuf_sim =  accmem_sim = opfusion_sim = 0
+
+  if(gemm_en) assert(!(im2col_sim | wgtbuf_sim | ifmbuf_sim | accmem_sim | opfusion_sim | ofmbuf_sim))
+  if(!ifmbuf_sim & !accmem_sim & (im2col_sim | wgtbuf_sim))  assert(im2col_sim ^ wgtbuf_sim)
+  if(ifmbuf_sim) assert(im2col_sim & wgtbuf_sim)
+  if(accmem_sim) assert(im2col_sim & wgtbuf_sim & ifmbuf_sim)
+  if(opfusion_sim) assert(!(im2col_sim & wgtbuf_sim & ifmbuf_sim & accmem_sim))
+  if(ofmbuf_sim) assert(!(im2col_sim | wgtbuf_sim | ifmbuf_sim | accmem_sim ))
+
+  val dma_en = alu_mat_en || pool_en || gemm_en
 }
 
 trait alu_mat_config extends dma_config{

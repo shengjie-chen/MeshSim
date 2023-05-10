@@ -45,6 +45,8 @@ class dmaAreqAbrit extends Module with dma_config {
   val io = IO(new Bundle() {
     val aluAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
     val gemmAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    val poolAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+    val opfusionAreq = Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
     //...
     val sel          = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val toDma        = new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth)
@@ -70,6 +72,12 @@ class dmaAreqAbrit extends Module with dma_config {
       }.elsewhen(io.gemmAreq.dmaEn){
         sel := id("gemm").U
         state := sKeep
+      }.elsewhen (io.poolAreq.dmaEn) {
+        sel := id("pool").U
+        state := sKeep
+      }.elsewhen (io.opfusionAreq.dmaEn) {
+        sel := id("opfusion").U
+        state := sKeep
       }
       //...
     }
@@ -94,6 +102,18 @@ class dmaAreqAbrit extends Module with dma_config {
       size := io.gemmAreq.dmaSize
       areq := io.gemmAreq.dmaAreq
     }
+    is(id("pool").U) { //dma_pool
+      en := io.poolAreq.dmaEn
+      addr := io.poolAreq.dmaAddr
+      size := io.poolAreq.dmaSize
+      areq := io.poolAreq.dmaAreq
+    }
+    is(id("opfusion").U) { //dma_opfusion
+      en := io.opfusionAreq.dmaEn
+      addr := io.opfusionAreq.dmaAddr
+      size := io.opfusionAreq.dmaSize
+      areq := io.opfusionAreq.dmaAreq
+    }
     //...
   }
   io.sel := sel;
@@ -110,12 +130,18 @@ class dmaRBufSel extends Module with dma_config{
     val dataIn = new dmaRData_io(dmaDataWidth)
     val aluData = Flipped(new dmaRData_io(dmaDataWidth))
     val gemmData = Flipped(new dmaRData_io(dmaDataWidth))
+    val poolData = Flipped(new dmaRData_io(dmaDataWidth))
+    val opfusionData = Flipped(new dmaRData_io(dmaDataWidth))
     //...
   })
   io.aluData.data := Mux(io.sel === id("alu").U,io.dataIn.data,0.U)
   io.aluData.valid  :=  Mux(io.sel === id("alu").U,io.dataIn.valid,0.U)
+  io.poolData.data := Mux(io.sel === id("pool").U, io.dataIn.data, 0.U)
+  io.poolData.valid := Mux(io.sel === id("pool").U, io.dataIn.valid, 0.U)
   io.gemmData.data := Mux(io.sel === id("gemm").U, io.dataIn.data, 0.U)
   io.gemmData.valid := Mux(io.sel === id("gemm").U, io.dataIn.valid, 0.U)
+  io.opfusionData.data := Mux(io.sel === id("opfusion").U, io.dataIn.data, 0.U)
+  io.opfusionData.valid := Mux(io.sel === id("opfusion").U, io.dataIn.valid, 0.U)
   //...
 }
 
@@ -142,18 +168,28 @@ class dmaWBufSel extends Module with dma_config{
     val dataOut = new dmaWData_io(dmaDataWidth)
     val aluData = Flipped(new dmaWData_io(dmaDataWidth))
     val gemmData = Flipped(new dmaWData_io(dmaDataWidth))
+    val poolData = Flipped(new dmaWData_io(dmaDataWidth))
+    val opfusionData = Flipped(new dmaWData_io(dmaDataWidth))
     //...
   })
 
   io.dataOut.data := 0.U
   io.aluData.valid := 0.U
   io.gemmData.valid := 0.U
+  io.poolData.valid := 0.U
+  io.opfusionData.valid := 0.U
   when(io.sel === id("alu").U) {
     io.dataOut.data := io.aluData.data
     io.aluData.valid := io.dataOut.valid
   }.elsewhen(io.sel === id("gemm").U) {
     io.dataOut.data := io.gemmData.data
     io.gemmData.valid := io.dataOut.valid
+  }.elsewhen(io.sel === id("pool").U) {
+    io.dataOut.data := io.poolData.data
+    io.poolData.valid := io.dataOut.valid
+  }.elsewhen(io.sel === id("opfusion").U) {
+    io.dataOut.data := io.opfusionData.data
+    io.opfusionData.valid := io.dataOut.valid
   }
   //...
 }
@@ -237,8 +273,12 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
     val rid = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val aluRAreq = if(en_cfg("alu")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val aluRData = if(en_cfg("alu")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
+    val poolRAreq = if (en_cfg("pool")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val poolRData = if (en_cfg("pool")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
     val gemmRAreq = if(en_cfg("gemm")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val gemmRData = if(en_cfg("gemm")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
+    val opfusionRAreq = if(en_cfg("opfusion")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val opfusionRData = if(en_cfg("opfusion")) Some(Flipped(new dmaRData_io(dmaDataWidth))) else None
     //...
 
     //----------------------write channel----------------------//
@@ -247,8 +287,12 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
     val wid = Output(UInt(log2Ceil(id.values.toList.max+1).W))
     val aluWAreq = if(en_cfg("alu")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val aluWData = if(en_cfg("alu")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
+    val poolWAreq = if (en_cfg("pool")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val poolWData = if (en_cfg("pool")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
     val gemmWAreq = if (en_cfg("gemm")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
     val gemmWData = if (en_cfg("gemm")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
+    val opfusionWAreq = if (en_cfg("opfusion")) Some(Flipped(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))) else None
+    val opfusionWData = if (en_cfg("opfusion")) Some(Flipped(new dmaWData_io(dmaDataWidth))) else None
     //...
   })
 
@@ -269,11 +313,23 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
   }else{
     dmaRAreqAbrit.io.aluAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
+  if (en_cfg("pool")) {
+    io.poolRData.get <> dmaRBufSel.io.poolData
+    dmaRAreqAbrit.io.poolAreq <> io.poolRAreq.get
+  } else {
+    dmaRAreqAbrit.io.poolAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  }
   if(en_cfg("gemm")){
     io.gemmRData.get <> dmaRBufSel.io.gemmData
     dmaRAreqAbrit.io.gemmAreq <> io.gemmRAreq.get
   }else{
     dmaRAreqAbrit.io.gemmAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  }
+  if(en_cfg("opfusion")){
+    io.opfusionRData.get <> dmaRBufSel.io.opfusionData
+    dmaRAreqAbrit.io.opfusionAreq <> io.opfusionRAreq.get
+  }else{
+    dmaRAreqAbrit.io.opfusionAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
   //...
 
@@ -299,6 +355,19 @@ class dma_ch(en_cfg:Map[String,Boolean]) extends  Module with hw_config{
     dmaWAreqAbrit.io.gemmAreq <> io.gemmWAreq.get
   } else {
     dmaWAreqAbrit.io.gemmAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  }
+  if (en_cfg("pool")) {
+    io.poolWData.get <> dmaWBufSel.io.poolData
+    dmaWAreqAbrit.io.poolAreq <> io.poolWAreq.get
+  } else {
+    dmaWAreqAbrit.io.poolAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
+  }
+  if (en_cfg("opfusion")) {
+    io.opfusionWData.get <> dmaWBufSel.io.opfusionData
+    dmaWAreqAbrit.io.opfusionAreq <> io.opfusionWAreq.get
+  } else {
+    dmaWBufSel.io.opfusionData.data := 0.U
+    dmaWAreqAbrit.io.opfusionAreq <> 0.U.asTypeOf(new dmaCtrl_io(dmaSizeWidth, dmaAddrWidth))
   }
   //...
 }

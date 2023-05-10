@@ -221,7 +221,7 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
       io.ifm.bits(i) := (io.ifm_read_port1.rdata(i * 8 + 7, i * 8) & Fill(8, !write_padding_1)) ## 0.U(8.W) ##
         (io.ifm_read_port0.rdata(i * 8 + 7, i * 8) & Fill(8, !write_padding_0))
     }
-    io.last_in := RegNext(this_ofm_last_block)
+    io.last_in := RegNext(this_ofm_last_block && io.ifm.ready)
   }
 }
 

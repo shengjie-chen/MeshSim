@@ -63,6 +63,12 @@ object align{
     inst.io.in := x
     inst.io.out
   }
+
+  def apply(x:UInt, wdith:Int, n:Int):UInt = {
+    val inst = Module(new align(wdith, n))
+    inst.io.in := x
+    inst.io.out
+  }
 }
 
 //----------------------Single Port Ram----------------------//

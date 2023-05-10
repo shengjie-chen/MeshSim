@@ -49,7 +49,7 @@ class Mesh() extends Module with mesh_config {
   }
 
   val ifm_ready = RegInit(0.B)
-  io.w.ready   := en
+  io.w.ready   := en && io.ifm.valid
   io.ifm.ready := ifm_ready && en
   when(start_cnt === (mesh_rows - 2).U) {
     ifm_ready := 1.B

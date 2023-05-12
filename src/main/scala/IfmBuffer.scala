@@ -35,14 +35,16 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
   val ifm_pd_h = io.ifm_size.h + io.padding_top + io.padding_down
   // im2col
   val ic_align_div32 = io.ifm_size.c(15, 5) // / 32.U  11bit
+  val oc_align_div32 = io.ofm_size.c(15, 5) // / 32.U  11bit
 
   withReset(riseEdge(io.task_done) || reset.asBool) {
     // ################ def common ################
-    val kw_cnt                 = RegInit(0.U(3.W))
-    val kh_cnt                 = RegInit(0.U(3.W))
-    val ifm_buffer_addr_offset = RegInit(0.U(11.W))
-    val block_h_cnt            = RegInit(0.U(5.W))
-    val ofm_first_block        = RegInit(1.B)
+    val kw_cnt                  = RegInit(0.U(3.W))
+    val kh_cnt                  = RegInit(0.U(3.W))
+    val ifm_buffer_addr_offset  = RegInit(0.U(11.W))
+    val block_h_cnt             = RegInit(0.U(5.W))
+    val ofmblock_first_ifmblock = RegInit(1.B)
+    val ofm_col_cnt             = RegInit(0.U(11.W))
 
     // ################ def addr 0 ################
     val ow_cnt0            = RegInit(0.U(12.W))
@@ -63,11 +65,14 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
     val oh_cnt1_block_row0_next = RegInit(oh_cnt1_initial)
 
     // ################ condition ################
-    val last_clk_of_one_block = (block_h_cnt === 31.U)
-    val kernel_w_move         = ifm_buffer_addr_offset === (ic_align_div32 - 1.U)
-    val kernel_h_move         = (kw_cnt === io.kernel - 1.U) // && kernel_w_move
-    val compute_next_ofm      = (kh_cnt === io.kernel - 1.U) // && kernel_h_move
-    val this_ofm_last_block   = kernel_w_move && kernel_h_move && compute_next_ofm
+    val last_clk_of_one_block       = (block_h_cnt === 31.U)
+    val kernel_w_move               = ifm_buffer_addr_offset === (ic_align_div32 - 1.U)
+    val kernel_h_move               = (kw_cnt === io.kernel - 1.U) // && kernel_w_move
+    val compute_next_ofm            = (kh_cnt === io.kernel - 1.U) // && kernel_h_move
+    val this_ofmblock_last_ifmblock = kernel_w_move && kernel_h_move && compute_next_ofm
+    val this_ofmcol_last_ifmblock =
+      last_clk_of_one_block && this_ofmblock_last_ifmblock &&
+        (oh_cnt1 >= io.ofm_size.h || oh_cnt1 === (io.ofm_size.h - 1.U) && ow_cnt1 === (io.ofm_size.w - 1.U))
 
     // ################ compute common ################
     when(io.ifm.ready) {
@@ -107,19 +112,27 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
 
     when(io.ifm.ready) {
       when(last_clk_of_one_block) {
-        ofm_first_block := 0.B
-        when(this_ofm_last_block) {
-          ofm_first_block := 1.B
+        ofmblock_first_ifmblock := 0.B
+        when(this_ofmblock_last_ifmblock) {
+          ofmblock_first_ifmblock := 1.B
         }
       }
     }
+
+    when(io.ifm.ready) {
+      when(this_ofmcol_last_ifmblock) {
+        ofm_col_cnt := ofm_col_cnt + 1.U
+      }
+    }
+
     // ################ compute addr 0 ################
-    val ow_cnt0_block_row0_temp = Mux(ow_cnt1 === io.ofm_size.w - 1.U, 0.U, ow_cnt1 + 1.U)
+    val ow_cnt0_block_row0_temp =
+      Mux(this_ofmcol_last_ifmblock, 0.U, Mux(ow_cnt1 === io.ofm_size.w - 1.U, 0.U, ow_cnt1 + 1.U))
     when(io.ifm.ready) {
       ow_cnt0 := ow_cnt0 + 1.U
       when(last_clk_of_one_block) {
         ow_cnt0 := ow_cnt0_block_row0
-        when(this_ofm_last_block) {
+        when(this_ofmblock_last_ifmblock) {
           ow_cnt0_block_row0 := ow_cnt0_block_row0_temp
           ow_cnt0            := ow_cnt0_block_row0_temp
         }
@@ -128,11 +141,12 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
       }
     }
 
-    val oh_cnt0_block_row0_temp = Mux(ow_cnt1 === io.ofm_size.w - 1.U, oh_cnt1 + 1.U, oh_cnt1)
+    val oh_cnt0_block_row0_temp =
+      Mux(this_ofmcol_last_ifmblock, 0.U, Mux(ow_cnt1 === io.ofm_size.w - 1.U, oh_cnt1 + 1.U, oh_cnt1))
     when(io.ifm.ready) {
       when(last_clk_of_one_block) {
         oh_cnt0 := oh_cnt0_block_row0
-        when(this_ofm_last_block) {
+        when(this_ofmblock_last_ifmblock) {
           oh_cnt0_block_row0 := oh_cnt0_block_row0_temp
           oh_cnt0            := oh_cnt0_block_row0_temp
         }
@@ -149,24 +163,29 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
     val ifm_buffer_addr0      = ifm_buffer_addr_base0 + ifm_buffer_addr_offset
 
     // ################ compute addr 1 ################
-    ow_cnt1_initial := ow_cnt1_initial_lut(Mux(io.ofm_size.w >= 32.U, 31.U, io.ofm_size.w - 1.U))
-    when(io.ifm.ready && ofm_first_block) {
-      ow_cnt1_block_row0_next := ow_cnt1_block_row0_next + 2.U
-      when(io.ofm_size.w === 1.U) {
-        ow_cnt1_block_row0_next := 0.U
-      }.elsewhen(ow_cnt1_block_row0_next === io.ofm_size.w - 1.U) {
-        ow_cnt1_block_row0_next := 1.U
-      }.elsewhen(ow_cnt1_block_row0_next === io.ofm_size.w - 2.U) {
-        ow_cnt1_block_row0_next := 0.U
+    ow_cnt1_initial := Mux(io.ofm_size.w > 32.U, 32.U, ow_cnt1_initial_lut(io.ofm_size.w - 1.U))
+    when(io.ifm.ready) {
+      when(this_ofmcol_last_ifmblock) {
+        ow_cnt1_block_row0_next := ow_cnt1_initial
+      }.elsewhen(ofmblock_first_ifmblock) {
+        ow_cnt1_block_row0_next := ow_cnt1_block_row0_next + 2.U
+        when(io.ofm_size.w === 1.U) {
+          ow_cnt1_block_row0_next := 0.U
+        }.elsewhen(ow_cnt1_block_row0_next === io.ofm_size.w - 1.U) {
+          ow_cnt1_block_row0_next := 1.U
+        }.elsewhen(ow_cnt1_block_row0_next === io.ofm_size.w - 2.U) {
+          ow_cnt1_block_row0_next := 0.U
+        }
       }
+
     }
     when(io.ifm.ready) {
       ow_cnt1 := ow_cnt1 + 1.U
       when(last_clk_of_one_block) {
         ow_cnt1 := ow_cnt1_block_row0
-        when(this_ofm_last_block) {
-          ow_cnt1_block_row0 := ow_cnt1_block_row0_next
-          ow_cnt1            := ow_cnt1_block_row0_next
+        when(this_ofmblock_last_ifmblock) {
+          ow_cnt1_block_row0 := Mux(this_ofmcol_last_ifmblock, ow_cnt1_initial, ow_cnt1_block_row0_next)
+          ow_cnt1            := Mux(this_ofmcol_last_ifmblock, ow_cnt1_initial, ow_cnt1_block_row0_next)
         }
       }.elsewhen(ow_cnt1 === io.ofm_size.w - 1.U) {
         ow_cnt1 := 0.U
@@ -174,20 +193,26 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
     }
 
     oh_cnt1_initial := Mux(io.ofm_size.w > 32.U, 0.U, oh_cnt1_initial_lut(io.ofm_size.w - 1.U))
-    when(io.ifm.ready && ofm_first_block) {
-      when(io.ofm_size.w === 1.U) {
-        oh_cnt1_block_row0_next := oh_cnt1_block_row0_next + 2.U
-      }.elsewhen(ow_cnt1_block_row0_next === io.ofm_size.w - 1.U ||
-        ow_cnt1_block_row0_next === io.ofm_size.w - 2.U) {
-        oh_cnt1_block_row0_next := oh_cnt1_block_row0_next + 1.U
+    when(io.ifm.ready) {
+      when(this_ofmcol_last_ifmblock) {
+        oh_cnt1_block_row0_next := oh_cnt1_initial
+      }.elsewhen(ofmblock_first_ifmblock) {
+        when(io.ofm_size.w === 1.U) {
+          oh_cnt1_block_row0_next := oh_cnt1_block_row0_next + 2.U
+        }.elsewhen(
+          ow_cnt1_block_row0_next === io.ofm_size.w - 1.U ||
+            ow_cnt1_block_row0_next === io.ofm_size.w - 2.U
+        ) {
+          oh_cnt1_block_row0_next := oh_cnt1_block_row0_next + 1.U
+        }
       }
     }
     when(io.ifm.ready) {
       when(last_clk_of_one_block) {
         oh_cnt1 := oh_cnt1_block_row0
-        when(this_ofm_last_block) {
-          oh_cnt1_block_row0 := oh_cnt1_block_row0_next
-          oh_cnt1            := oh_cnt1_block_row0_next
+        when(this_ofmblock_last_ifmblock) {
+          oh_cnt1_block_row0 := Mux(this_ofmcol_last_ifmblock, oh_cnt1_initial, oh_cnt1_block_row0_next)
+          oh_cnt1            := Mux(this_ofmcol_last_ifmblock, oh_cnt1_initial, oh_cnt1_block_row0_next)
         }
       }.elsewhen(ow_cnt1 === io.ofm_size.w - 1.U) {
         oh_cnt1 := oh_cnt1 + 1.U
@@ -209,19 +234,19 @@ class IfmBuffer extends Module with mesh_config with buffer_config {
 
     // ################ mesh write ################
     io.ifm.valid := io.task_done
-    val write_padding_0 = RegNext(
-      iw_pd_cnt0 < low_w || iw_pd_cnt0 >= high_w || ih_pd_cnt0 < low_h || ih_pd_cnt0 >= high_h
-        || (oh_cnt0 >= io.ofm_size.h)
-    )
-    val write_padding_1 = RegNext(
-      iw_pd_cnt1 < low_w || iw_pd_cnt1 >= high_w || ih_pd_cnt1 < low_h || ih_pd_cnt1 >= high_h
-        || (oh_cnt1 >= io.ofm_size.h)
-    )
+    val ifm_all_finish  = ofm_col_cnt >= oc_align_div32
+    val oh_cnt0_surplus = oh_cnt0 >= io.ofm_size.h
+    val oh_cnt1_surplus = oh_cnt1 >= io.ofm_size.h
+    val write_padding_0 = iw_pd_cnt0 < low_w || iw_pd_cnt0 >= high_w || ih_pd_cnt0 < low_h || ih_pd_cnt0 >= high_h
+    val write_padding_1 = iw_pd_cnt1 < low_w || iw_pd_cnt1 >= high_w || ih_pd_cnt1 < low_h || ih_pd_cnt1 >= high_h
+    val read_zero_0     = RegNext(write_padding_0 || oh_cnt0_surplus || ifm_all_finish)
+    val read_zero_1     = RegNext(write_padding_1 || oh_cnt1_surplus || ifm_all_finish)
+
     for (i <- 0 until mesh_rows) {
-      io.ifm.bits(i) := (io.ifm_read_port1.rdata(i * 8 + 7, i * 8) & Fill(8, !write_padding_1)) ## 0.U(8.W) ##
-        (io.ifm_read_port0.rdata(i * 8 + 7, i * 8) & Fill(8, !write_padding_0))
+      io.ifm.bits(i) := (io.ifm_read_port1.rdata(i * 8 + 7, i * 8) & Fill(8, !read_zero_1)) ## 0.U(8.W) ##
+        (io.ifm_read_port0.rdata(i * 8 + 7, i * 8) & Fill(8, !read_zero_0))
     }
-    io.last_in := RegNext(this_ofm_last_block && io.ifm.ready)
+    io.last_in := RegNext(this_ofmblock_last_ifmblock && io.ifm.ready)
   }
 }
 

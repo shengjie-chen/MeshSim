@@ -36,7 +36,7 @@ verilog: set_para
 	mkdir -p $(VERILOG_DIR)
 	sbt "test:runMain $(TOPMODULE_GEN)  -td $(VERILOG_DIR)"
 
-sim_vcd: verilog
+sim_vcd: clean verilog
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
 	@#verilator -MMD --cc $(VSRCS) --Mdir $(OBJ_DIR) --trace-fst --exe --build $(CSRCS_VCD) -o $(abspath $(BIN_VCD)) # --LDFLAGS -fsanitize=address -CFLAGS -fsanitize=address

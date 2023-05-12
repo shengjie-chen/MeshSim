@@ -6,7 +6,6 @@
 #include "verilated_fst_c.h"
 #include <cstdlib>
 #include <iostream>
-#include <stdint.h>
 #include <sys/time.h>
 
 using namespace std;
@@ -34,22 +33,22 @@ VerilatedFstC *tfp = new VerilatedFstC;
 int sim_finish = 0;
 
 // input
-uint32_t ifm0[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
-uint32_t ifm1[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
-uint32_t w[ACCEL_w_block_num][MAT_SIZE][MAT_SIZE];
+int32_t ifm0[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
+int32_t ifm1[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
+int32_t w[ACCEL_w_block_num][MAT_SIZE][MAT_SIZE];
 // gold
-uint32_t ofm[ACCEL_ofm_x_block_num][ACCEL_ofm_y_block_num][ACCEL_ifm_x_block_num][MAT_SIZE]
-            [MAT_SIZE] = {0};
-uint32_t out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
+int32_t ofm[ACCEL_ofm_x_block_num][ACCEL_ofm_y_block_num][ACCEL_ifm_x_block_num][MAT_SIZE]
+           [MAT_SIZE] = {0};
+int32_t out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 // dut
-uint32_t hw_out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
+int32_t hw_out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 
 // print
-void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
+void MatPrint(int32_t A[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
     for (int col = 0; col < MAT_SIZE; col++) {
       // cout << A[row][col] << "  \t";
-      printf("%05x\t", A[row][col]);
+      printf("%05d\t", A[row][col]);
     }
     cout << endl;
   }
@@ -57,11 +56,11 @@ void MatPrint(uint32_t A[MAT_SIZE][MAT_SIZE]) {
 
 // ################ stimulator ################
 
-void MatMul(uint32_t A[MAT_SIZE][MAT_SIZE], uint32_t B[MAT_SIZE][MAT_SIZE],
-            uint32_t C[MAT_SIZE][MAT_SIZE]) {
+void MatMul(int32_t A[MAT_SIZE][MAT_SIZE], int32_t B[MAT_SIZE][MAT_SIZE],
+            int32_t C[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
     for (int col = 0; col < MAT_SIZE; col++) {
-      uint32_t Cvalue = 0;
+      int32_t Cvalue = 0;
       for (int e = 0; e < MAT_SIZE; ++e) {
         Cvalue += A[row][e] * B[e][col];
       }
@@ -70,10 +69,10 @@ void MatMul(uint32_t A[MAT_SIZE][MAT_SIZE], uint32_t B[MAT_SIZE][MAT_SIZE],
   }
 }
 
-void MatInit(uint32_t A[MAT_SIZE][MAT_SIZE]) {
+void MatInit(int32_t A[MAT_SIZE][MAT_SIZE]) {
   for (int row = 0; row < MAT_SIZE; row++) {
     for (int col = 0; col < MAT_SIZE; col++) {
-      A[row][col] = rand() % ACCEL_data_max;
+      A[row][col] = RandomInt(-ACCEL_data_max, ACCEL_data_max);
     }
   }
 }

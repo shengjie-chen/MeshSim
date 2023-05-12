@@ -61,7 +61,7 @@ class Mesh() extends Module with mesh_config {
     when(start_cnt === (mesh_rows - 1).U) {
       ifm_ready_inside := 1.B
     }.elsewhen(ifm_finish) {
-      ifm_ready := 0.B
+      ifm_ready_inside := 0.B
     }
   }
   val ifm_handshake = io.ifm.valid && (ifm_ready_inside && en)

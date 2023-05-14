@@ -1,34 +1,48 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Apr 28 03:07:48 2023
+[*] Sat May 13 15:48:24 2023
 [*]
 [dumpfile] "/home/jiexxpu/ncnnAccel/MeshSim/build/Mesh/Mesh.wave"
-[dumpfile_mtime] "Fri Apr 28 02:50:46 2023"
-[dumpfile_size] 8201
+[dumpfile_mtime] "Sat May 13 15:41:01 2023"
+[dumpfile_size] 8304
 [savefile] "/home/jiexxpu/ncnnAccel/MeshSim/build/Mesh/Mesh.sav"
-[timestart] 27
-[size] 1920 1043
-[pos] 1847 0
-*-2.023270 35 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 18
+[size] 1848 1016
+[pos] 0 23
+*-3.109918 52 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.Mesh.
 [sst_width] 335
-[signals_width] 305
+[signals_width] 297
 [sst_expanded] 1
-[sst_vpaned_height] 336
+[sst_vpaned_height] 628
 @28
 [color] 1
 TOP.Mesh.clock
 TOP.Mesh.reset
+@200
+-condition
+@28
+TOP.Mesh.en
+TOP.Mesh.ifm_finish
+TOP.Mesh.io_w_finish
+TOP.Mesh.start_r
 TOP.Mesh.start_cnt[1:0]
+TOP.Mesh.w_state_r
+TOP.Mesh.w_block
+@200
+-mesh_ctl
+@28
 TOP.Mesh.propagate
 @200
 -IFM
 @28
+TOP.Mesh.ifm_handshake
 [color] 2
 TOP.Mesh.io_ifm_valid
 [color] 2
 TOP.Mesh.io_ifm_ready
+TOP.Mesh.ifm_ready_inside
 @22
 TOP.Mesh.io_ifm_bits_0[31:0]
 TOP.Mesh.io_ifm_bits_1[31:0]
@@ -39,40 +53,83 @@ TOP.Mesh.io_ifm_bits_1[31:0]
 TOP.Mesh.io_w_valid
 [color] 2
 TOP.Mesh.io_w_ready
-@24
+@420
 TOP.Mesh.io_w_bits_0[31:0]
 TOP.Mesh.io_w_bits_1[31:0]
 TOP.Mesh.io_w_bits_2[31:0]
 @200
 -OFM0
 @28
-TOP.Mesh.io_ofm_valid
-@24
-TOP.Mesh.io_ofm_bits_addr[1:0]
-TOP.Mesh.io_ofm_bits_data0_0[31:0]
-TOP.Mesh.io_ofm_bits_data0_1[31:0]
-TOP.Mesh.io_ofm_bits_data0_2[31:0]
+TOP.Mesh.io_ofm_0_valid
+TOP.Mesh.io_ofm_0_bits_addr[1:0]
+@420
+TOP.Mesh.io_ofm_0_bits_data0[31:0]
+TOP.Mesh.io_ofm_0_bits_data1[31:0]
+@28
+TOP.Mesh.io_ofm_0_bits_acc_last
 @200
 -OFM1
-@24
-TOP.Mesh.io_ofm_bits_data1_0[31:0]
-TOP.Mesh.io_ofm_bits_data1_1[31:0]
-TOP.Mesh.io_ofm_bits_data1_2[31:0]
+@28
+TOP.Mesh.io_ofm_1_valid
+TOP.Mesh.io_ofm_1_bits_addr[1:0]
+@420
+TOP.Mesh.io_ofm_1_bits_data0[31:0]
+TOP.Mesh.io_ofm_1_bits_data1[31:0]
+@28
+TOP.Mesh.io_ofm_1_bits_acc_last
 @200
 -mesh 0 0
 @28
 TOP.Mesh.mesh_0_0.clock
-@24
+@22
+TOP.Mesh.mesh_0_0.io_in_a[31:0]
+@420
 TOP.Mesh.mesh_0_0.a0[7:0]
+TOP.Mesh.mesh_0_0.a1[7:0]
 TOP.Mesh.mesh_0_0.use_b[31:0]
 TOP.Mesh.mesh_0_0.io_out_d0[31:0]
+TOP.Mesh.mesh_0_0.io_out_d1[31:0]
 TOP.Mesh.mesh_0_0.io_in_b[31:0]
 @28
 TOP.Mesh.mesh_0_0.io_in_b_valid
 TOP.Mesh.mesh_0_0.io_ctl_propagate
-@24
+@420
 TOP.Mesh.mesh_0_0.b_0[31:0]
 @28
 TOP.Mesh.mesh_0_0.io_ctl_sel
+@200
+-mesh_0_1
+@420
+TOP.Mesh.mesh_0_1.a0[7:0]
+TOP.Mesh.mesh_0_1.use_b[31:0]
+TOP.Mesh.mesh_0_1.io_out_d0[31:0]
+@200
+-mesh_1_1
+@420
+TOP.Mesh.mesh_1_1.a0[7:0]
+TOP.Mesh.mesh_1_1.use_b[31:0]
+TOP.Mesh.mesh_1_1.io_out_d0[31:0]
+[color] 2
+TOP.Mesh.mesh_1_1.b_0[31:0]
+TOP.Mesh.mesh_1_1.b_1[31:0]
+@28
+TOP.Mesh.mesh_1_1.b_invalid_1
+TOP.Mesh.mesh_1_1.io_ctl_propagate
+TOP.Mesh.mesh_1_1.io_ctl_sel
+TOP.Mesh.mesh_1_1.b_invalid_0
+@29
+TOP.Mesh.mesh_1_1.out_b_valid
+@28
+TOP.Mesh.mesh_1_1.io_out_b_valid
+@200
+-mesh_2_1
+@28
+TOP.Mesh.mesh_2_1.io_ctl_propagate
+TOP.Mesh.mesh_2_1.io_ctl_sel
+TOP.Mesh.mesh_2_1.io_in_b_valid
+@420
+TOP.Mesh.mesh_2_1.a0[7:0]
+TOP.Mesh.mesh_2_1.use_b[31:0]
+TOP.Mesh.mesh_2_1.io_out_d0[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

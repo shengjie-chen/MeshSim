@@ -1,16 +1,5 @@
 #include "VMeshTop.h"
-#include "config.h"
-#include "svdpi.h"
-#include "time.h"
-#include "verilated.h"
-#include "verilated_fst_c.h"
-#include <cstdlib>
-#include <iostream>
-#include <sys/time.h>
-
-using namespace std;
-
-#define MAT_SIZE ACCEL_mesh_size
+#include "common.h"
 
 // TOP IO PORT
 #define OUT_VALID_ADDRGAP ((uint64_t)&top->io_out_1_valid - (uint64_t)&top->io_out_0_valid)
@@ -24,127 +13,15 @@ using namespace std;
 #define TOP_OUT_DATA1_COL(a) *(IData *)((uint64_t)&top->io_out_0_bits_data1 + OUT_DATA_ADDRGAP * a)
 
 vluint64_t main_time = 0; // 当前仿真时间
-const vluint64_t sim_time = 2 * (5 + ACCEL_ifm_block_num_div2 * ACCEL_ofm_x_block_num) * MAT_SIZE +
-                            1000; // 最高仿真时间 可选：100
-
-VMeshTop *top = new VMeshTop;
-VerilatedFstC *tfp = new VerilatedFstC;
 
 int sim_finish = 0;
 
-// input
-int32_t ifm0[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
-int32_t ifm1[ACCEL_ifm_block_num_div2][MAT_SIZE][MAT_SIZE];
-int32_t w[ACCEL_w_block_num][MAT_SIZE][MAT_SIZE];
 // gold
-int32_t ofm[ACCEL_ofm_x_block_num][ACCEL_ofm_y_block_num][ACCEL_ifm_x_block_num][MAT_SIZE]
-           [MAT_SIZE] = {0};
 int32_t out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 // dut
 int32_t hw_out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 
-// print
-void MatPrint(int32_t A[MAT_SIZE][MAT_SIZE]) {
-  for (int row = 0; row < MAT_SIZE; row++) {
-    for (int col = 0; col < MAT_SIZE; col++) {
-      // cout << A[row][col] << "  \t";
-      printf("%05d\t", A[row][col]);
-    }
-    cout << endl;
-  }
-}
-
-// ################ stimulator ################
-
-void MatMul(int32_t A[MAT_SIZE][MAT_SIZE], int32_t B[MAT_SIZE][MAT_SIZE],
-            int32_t C[MAT_SIZE][MAT_SIZE]) {
-  for (int row = 0; row < MAT_SIZE; row++) {
-    for (int col = 0; col < MAT_SIZE; col++) {
-      int32_t Cvalue = 0;
-      for (int e = 0; e < MAT_SIZE; ++e) {
-        Cvalue += A[row][e] * B[e][col];
-      }
-      C[row][col] = Cvalue;
-    }
-  }
-}
-
-void MatInit(int32_t A[MAT_SIZE][MAT_SIZE]) {
-  for (int row = 0; row < MAT_SIZE; row++) {
-    for (int col = 0; col < MAT_SIZE; col++) {
-      A[row][col] = RandomInt(-ACCEL_data_max, ACCEL_data_max);
-    }
-  }
-}
-
-void InputInit() {
-  cout << "ifm block num:   " << ACCEL_ifm_block_num << endl;
-  cout << "ifm x block num: " << ACCEL_ifm_x_block_num << endl;
-  cout << "ifm y block num: " << ACCEL_ifm_y_block_num << endl;
-  cout << "w block num:     " << ACCEL_w_block_num << endl;
-  cout << "ofm block num:   " << ACCEL_ofm_block_num << endl;
-  cout << "ofm x block num: " << ACCEL_ofm_x_block_num << endl;
-  cout << "ofm y block num: " << ACCEL_ofm_y_block_num << endl;
-
-  cout << "************ GEN IFM ************" << endl;
-  for (int i = 0; i < ACCEL_ifm_block_num_div2; i++) {
-    MatInit(ifm0[i]);
-    MatInit(ifm1[i]);
-#ifdef DEBUG_MODE
-    cout << "ifm0[" << i << "]" << endl;
-    MatPrint(ifm0[i]);
-    cout << "ifm1[" << i << "]" << endl;
-    MatPrint(ifm1[i]);
-#endif
-  }
-  for (int i = 0; i < ACCEL_w_block_num; i++) {
-    MatInit(w[i]);
-#ifdef DEBUG_MODE
-    cout << "w[" << i << "]" << endl;
-    MatPrint(w[i]);
-#endif
-  }
-
-  // ofm
-  cout << "************ GOLD OFM ************" << endl;
-  for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
-    for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
-      for (int k = 0; k < ACCEL_ifm_x_block_num; k++) {
-        if (j % 2 == 0) {
-          MatMul(ifm0[k + j / 2 * ACCEL_ifm_x_block_num], w[i * ACCEL_ifm_x_block_num + k],
-                 ofm[i][j][k]);
-        } else {
-          MatMul(ifm1[k + j / 2 * ACCEL_ifm_x_block_num], w[i * ACCEL_ifm_x_block_num + k],
-                 ofm[i][j][k]);
-        }
-#ifdef DEBUG_MODE
-        cout << "ofm[" << i << "][" << j << "][" << k << "]:" << endl;
-        MatPrint(ofm[i][j][k]);
-#endif
-      }
-    }
-  }
-
-  // for (int i = 0; i < ACCEL_ifm_block_num_div2; i++) {
-  //   cout << "************ GOLD RESULT " << i << " ************" << endl;
-  //   MatInit(ifm0[i]);
-  //   MatInit(ifm1[i]);
-  //   MatInit(w[i]);
-  //   MatMul(ifm0[i], w[i], ofm0[i]);
-  //   MatMul(ifm1[i], w[i], ofm1[i]);
-
-  //   cout << "ifm0:" << endl;
-  //   MatPrint(ifm0[i]);
-  //   cout << "ifm1:" << endl;
-  //   MatPrint(ifm1[i]);
-  //   cout << "w:" << endl;
-  //   MatPrint(w[i]);
-  //   cout << "ofm0:" << endl;
-  //   MatPrint(ofm0[i]);
-  //   cout << "ofm1:" << endl;
-  //   MatPrint(ofm1[i]);
-  // }
-
+void gen_out() {
   cout << "************ GOLD OUT ************" << endl;
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ifm_y_block_num; j++) {
@@ -167,116 +44,15 @@ void InputInit() {
   }
 #endif
   cout << "************ GOLD OUT FINISH ************" << endl;
-
-  // for (int i = 0; i < ACCEL_ofm_block_num; i++) {
-  //   for (int j = 0; j < MAT_SIZE; j++) {
-  //     for (int k = 0; k < MAT_SIZE; k++) {
-  //       if (i % 2 == 0) {
-  //         for (int m = 0; m < ACCEL_ifm_x_block_num; m++) {
-  //           out[i][j][k] = ofm0[i / 2 * ACCEL_ifm_x_block_num + m][j][k] + out[i][j][k];
-  //         }
-  //       } else {
-  //         for (int m = 0; m < ACCEL_ifm_x_block_num; m++) {
-  //           out[i][j][k] = ofm1[i / 2 * ACCEL_ifm_x_block_num + m][j][k] + out[i][j][k];
-  //         }
-  //       }
-  //     }
-  //   }
-  //   cout << "out" << i << endl;
-  //   MatPrint(out[i]);
-  // }
 }
-
-void change_ifm() {
-  static int ifm_row_p = 0;
-  static int input_index = 0;
-  static int ifm_cnt = 0; // max ACCEL_ofm_x_block_num , ergodic ifm nums
-  if (ifm_cnt == ACCEL_ofm_x_block_num) {
-    for (int i = 0; i < MAT_SIZE; i++) {
-      TOP_IFM_BITS_ROW(i) = 0;
-    }
-    top->io_ifm_valid = 0;
-    top->io_last_in = 0;
-  } else {
-    for (int i = 0; i < MAT_SIZE; i++) {
-      TOP_IFM_BITS_ROW(i) =
-          ifm0[input_index][ifm_row_p][i] + (ifm1[input_index][ifm_row_p][i] << 16);
-    }
-    if (input_index % ACCEL_ifm_x_block_num == (ACCEL_ifm_x_block_num - 1)) {
-      top->io_last_in = 1;
-    } else {
-      top->io_last_in = 0;
-    }
-
-    if (ifm_row_p == MAT_SIZE - 1) {
-      ifm_row_p = 0;
-      if (input_index == ACCEL_ifm_block_num_div2 - 1) {
-        input_index = 0;
-        ifm_cnt++;
-      } else {
-        input_index++;
-      }
-    } else {
-      ifm_row_p++;
-    }
-  }
-}
-
-void change_w() {
-  static int w_row_p = MAT_SIZE - 1;
-  static int w_index = 0;
-  static int w_cnt = 0; // max ACCEL_ifm_y_block_num/2 , ergodic w one col nums
-  // if (w_index == ACCEL_ifm_x_block_num * ACCEL_ofm_x_block_num && w_cnt == ACCEL_ofm_x_block_num)
-  // {
-  //   for (int i = 0; i < MAT_SIZE; i++) {
-  //     TOP_W_BITS_COL(i) = 0;
-  //   }
-  //   top->io_w_valid = 0;
-  // } else {
-
-  if (top->io_w_valid == 1) {
-    if (w_index == ACCEL_ifm_x_block_num * ACCEL_ofm_x_block_num) {
-      top->io_w_valid = 0;
-      for (int i = 0; i < MAT_SIZE; i++) {
-        TOP_W_BITS_COL(i) = 0;
-      }
-    } else {
-
-      for (int i = 0; i < MAT_SIZE; i++) {
-        TOP_W_BITS_COL(i) = w[w_index][w_row_p][i];
-      }
-
-      if (w_row_p == 0) {
-        // printf("%d\n", top->io_w_valid);
-        // printf("w_index:%d\n", w_index);
-        // printf("w_cnt:  %d\n", w_cnt);
-        // printf("w_row_p:%d\n", w_row_p);
-        if ((w_index % ACCEL_ifm_x_block_num) == (ACCEL_ifm_x_block_num - 1)) {
-          // w this col this time finish
-          if (w_cnt == ACCEL_ifm_y_block_num / 2 - 1) { // w this col finish
-            w_index++;
-            w_cnt = 0;
-          } else {
-            w_index = w_index - ACCEL_ifm_x_block_num + 1;
-            w_cnt++;
-          }
-        } else {
-          w_index++;
-        }
-        w_row_p = MAT_SIZE - 1;
-      } else {
-        w_row_p--;
-      }
-    }
-  }
-}
-
 // ################ checker ################
+
 void Outputprint() {
-  for (int i = 0; i < ACCEL_ofm_block_num; i++) {
-    cout << "************ HW RESULT " << i << " ************" << endl;
-    cout << "out" << i << endl;
-    MatPrint(hw_out[i]);
+  for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
+    for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
+      cout << "************ HW RESULT ROW " << j << " COL " << i << " ************" << endl;
+      MatPrint(hw_out[i * ACCEL_ofm_y_block_num + j]);
+    }
   }
 }
 
@@ -300,27 +76,25 @@ void check_out() {
 }
 
 // ################ SIM ################
-int ifm_hs_reg = 0;
-int ifm_hs_reg_r = 0;
-int w_hs_reg = 0;
-void update_reg() {
-  ifm_hs_reg_r = ifm_hs_reg;
-  ifm_hs_reg = top->io_ifm_ready && top->io_ifm_valid;
-  w_hs_reg = top->io_w_ready && top->io_w_valid;
-}
-
 void change_input() {
   static int output_index[MAT_SIZE] = {0}; // output mat row index
+  static int ifm_start = 0;                // ifm hs first clk delay one clk data valid
+  // static int w_start = 1;                  // w first valid w_data must change
+  static int w_onecol_finish_switch = 0;
 
   // change ifm
-  if (ifm_hs_reg_r) {
-    change_ifm();
-  }
+  if (top->io_ifm_ready && top->io_ifm_valid) {
+    if (ifm_start) {
+      change_ifm();
+    }
+    ifm_start = 1;
+  } 
 
   // change w
-  if (w_hs_reg) {
-    change_w();
-  }
+  if (top->io_w_ready && top->io_w_valid || w_onecol_finish_switch) {
+    // change_w(w_onecol_finish_switch);
+  change_w();
+  // }
 
   for (int i = 0; i < MAT_SIZE; i++) {
     if (TOP_OUT_VALID_COL(i)) {
@@ -367,7 +141,7 @@ void one_clock() {
 }
 
 int main(int argc, char **argv, char **env) {
-  // srand((unsigned)time(NULL));
+  srand((unsigned)time(NULL));
 
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);
@@ -379,6 +153,7 @@ int main(int argc, char **argv, char **env) {
 
   // input init
   InputInit();
+  gen_out();
   top->io_stop = 0;
   top->io_w_finish = 0;
 
@@ -401,8 +176,8 @@ int main(int argc, char **argv, char **env) {
 #endif
     main_time++;
   }
-
   top->reset = 0;
+
   // prepare data for 5 clock
   n = 5;
   while (n-- > 0) {
@@ -426,8 +201,9 @@ int main(int argc, char **argv, char **env) {
   // data valid
   top->io_w_valid = 1;
   top->io_ifm_valid = 1;
-  change_ifm();
-  change_w();
+  top->eval();
+  // change_ifm();
+  // change_w();
 
   // parse_args
   while (!Verilated::gotFinish() && main_time < sim_time && !sim_finish) {

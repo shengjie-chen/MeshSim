@@ -14,17 +14,18 @@ class ofm_data extends acc_data {
 
 class Mesh() extends Module with mesh_config {
   val io = IO(new Bundle {
-    val w        = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
-    val ifm      = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W)))) // each has 2 int8 or 1 int32/fp32
-    val ofm      = Vec(mesh_columns, Valid(new ofm_data))
-    val stop     = Input(Bool())
-    val w_finish = Input(Bool())
-    val last_in  = Input(Bool())
+    val w           = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
+    val ifm         = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W)))) // each has 2 int8 or 1 int32/fp32
+    val ofm         = Vec(mesh_columns, Valid(new ofm_data))
+    val ofmbuf_stop = Input(Bool())
+    val w_finish    = Input(Bool())
+    val last_in     = Input(Bool())
   })
 
   val mesh       = Seq.fill(mesh_rows, mesh_columns)(Module(new PE))
   val meshT      = mesh.transpose
-  val en         = !io.stop
+  val w_block    = w_state_r && !io.w.valid
+  val en         = !(io.ofmbuf_stop || w_block)
   val w_finish   = io.w_finish
   val ifm_finish = ShiftRegister(w_finish, mesh_size, en)
 //  assert(ifm_finish && io.last_in || !ifm_finish)
@@ -35,17 +36,29 @@ class Mesh() extends Module with mesh_config {
   //  }
   //  dontTouch(cnt)
 
-  val start_cnt = RegInit(0.U(log2Up(mesh_rows).W))
-  val start     = RegInit(0.B)
-  when(((io.w.valid && io.w.ready && io.ifm.valid) || start) && en) {
-    start     := 1.B
+  val start_cnt    = RegInit(0.U(log2Up(mesh_rows).W))
+  lazy val start_r = RegInit(0.B)
+  val start        = io.w.valid && io.w.ready && io.ifm.valid && en && !start_r || start_r
+  when(en) {
+    when(ifm_finish) {
+      start_r := 0.B
+    }.elsewhen(io.w.valid && io.w.ready && io.ifm.valid && !start_r) {
+      start_r := 1.B
+    }
+  }
+
+  when(start && en) {
     start_cnt := start_cnt + 1.U
     when(start_cnt === (mesh_rows - 1).U) {
       start_cnt := 0.U
     }
-    when(ifm_finish) {
-      start := 0.B
-    }
+  }
+
+  lazy val w_state_r = RegInit(0.B)
+  when(w_finish) {
+    w_state_r := 0.B
+  }.elsewhen((io.w.valid && io.w.ready && io.ifm.valid) && en && !w_state_r) {
+    w_state_r := 1.B
   }
 
   val ifm_ready = RegInit(0.B)
@@ -58,10 +71,10 @@ class Mesh() extends Module with mesh_config {
   }
   val ifm_ready_inside = RegInit(0.B)
   when(en) {
-    when(start_cnt === (mesh_rows - 1).U) {
-      ifm_ready_inside := 1.B
-    }.elsewhen(ifm_finish) {
+    when(ifm_finish) {
       ifm_ready_inside := 0.B
+    }.elsewhen(start_cnt === (mesh_rows - 1).U) {
+      ifm_ready_inside := 1.B
     }
   }
   val ifm_handshake = io.ifm.valid && (ifm_ready_inside && en)
@@ -138,7 +151,7 @@ class Mesh() extends Module with mesh_config {
     ofm_valid := ofm_valid ## ifm_handshake
   }
   for (c <- 0 until mesh_columns) {
-    io.ofm(c).valid := ofm_valid(mesh_rows + c - 1)
+    io.ofm(c).valid := ofm_valid(mesh_rows + c - 1) && en
   }
 
   // ofm acc_last

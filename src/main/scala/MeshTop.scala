@@ -7,7 +7,7 @@ class MeshTop extends Module with mesh_config {
     val w        = Flipped(Decoupled(Vec(mesh_columns, UInt(pe_data_w.W))))
     val ifm      = Flipped(Decoupled(Vec(mesh_rows, UInt(pe_data_w.W))))
     val last_in  = Input(Bool())
-    val stop     = Input(Bool())
+    val ofmbuf_stop     = Input(Bool())
     val w_finish = Input(Bool())
 
     val out  = Vec(mesh_columns, Valid(new acc_data))
@@ -19,11 +19,11 @@ class MeshTop extends Module with mesh_config {
   mesh.io.w        <> io.w
   mesh.io.ifm      <> io.ifm
   mesh.io.last_in  <> io.last_in
-  mesh.io.stop     <> io.stop
+  mesh.io.ofmbuf_stop     <> io.ofmbuf_stop
   mesh.io.w_finish <> io.w_finish
 
   acc_mem.io.ofm  <> mesh.io.ofm
-  acc_mem.io.stop <> io.stop
+  acc_mem.io.stop <> io.ofmbuf_stop
 
   io.out <> acc_mem.io.out
 }

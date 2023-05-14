@@ -47,7 +47,8 @@ class PE extends Module with pe_config {
   b_invalid(0)   := riseEdge(io.ctl.sel) // sel posedge
   b_invalid(1)   := fallEdge(io.ctl.sel) // sel negedge
   val out_b_valid = !b_invalid(p) && !(io.ctl.propagate === io.ctl.sel)
-  io.out_b_valid := out_b_valid || RegEnable(out_b_valid, dualEdge(io.en))
+  io.out_b_valid := out_b_valid
+//  || RegEnable(out_b_valid, dualEdge(io.en))
 
   io.out_a  := RegEnable(io.in_a, io.en)
   io.out_d0 := RegEnable(io.in_c0.asSInt + a0 * use_b, io.en).asUInt

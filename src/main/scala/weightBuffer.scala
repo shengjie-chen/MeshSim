@@ -159,7 +159,7 @@ class weightBuffer extends Module with dma_config with buffer_config {
   wgt_one_output_done := Mux(start_t0, false.B, wgt_buffer_repeat_equal & wgt_buffer_raddr === k2ic_align - 2.U)
   wgt_buffer.ren := io.wgt_en & (wgt_buffer0_r_valid | wgt_buffer1_r_valid) & io.o_data.ready
   wgt_buffer.raddr := Cat(~wgt_buffer_sel,wgt_buffer_raddr)
-  io.o_data.valid := RegNext(wgt_buffer.ren)
+  io.o_data.valid := RegNext(io.wgt_en & (wgt_buffer0_r_valid | wgt_buffer1_r_valid))
   for (i <- 0 until 32) {
     io.o_data.bits(i) := Cat(0.U(24.W), wgt_buffer.rdata(8 * i + 7, 8 * i))
   }

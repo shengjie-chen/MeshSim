@@ -358,7 +358,7 @@ class tcp extends Module with hw_config{
   if(gemm_en || (accmem_sim & simMode)){
     mesh.get.io.w <> wgtBuf.get.io.o_data
     mesh.get.io.ifm <> ifmBuffer.get.io.ifm
-    mesh.get.io.stop := 0.B
+    mesh.get.io.ofmbuf_stop := 0.B
     mesh.get.io.w_finish <> wgtBuf.get.io.last
     mesh.get.io.last_in <> ifmBuffer.get.io.last_in
 

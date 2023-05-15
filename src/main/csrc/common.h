@@ -52,7 +52,7 @@ int32_t w[ACCEL_w_block_num][MAT_SIZE][MAT_SIZE];
 int32_t ofm[ACCEL_ofm_x_block_num][ACCEL_ofm_y_block_num][ACCEL_ifm_x_block_num][MAT_SIZE]
            [MAT_SIZE] = {0};
 
-void InputInit() {
+void InputInit_OfmGen() {
   cout << "ofm w:           " << ACCEL_ofm_w << endl;
   cout << "ofm h:           " << ACCEL_ofm_h << endl;
   cout << "ifm block num:   " << ACCEL_ifm_block_num << endl;
@@ -63,7 +63,7 @@ void InputInit() {
   cout << "ofm x block num: " << ACCEL_ofm_x_block_num << endl;
   cout << "ofm y block num: " << ACCEL_ofm_y_block_num << endl;
 
-  cout << "************ GEN IFM ************" << endl;
+  cout << "************************************************************************ GEN IFM ************" << endl;
   for (int i = 0; i < ACCEL_ifm_block_num_div2; i++) {
     MatInit(ifm0[i]);
     MatInit(ifm1[i]);
@@ -74,6 +74,7 @@ void InputInit() {
     MatPrint(ifm1[i]);
 #endif
   }
+  cout << "************************************************************************ GEN W ************" << endl;
   for (int i = 0; i < ACCEL_w_block_num; i++) {
     MatInit(w[i]);
 #ifdef DEBUG_MODE
@@ -83,7 +84,7 @@ void InputInit() {
   }
 
   // ofm
-  cout << "************ GOLD OFM ************" << endl;
+  cout << "************************************************************************ GOLD OFM ************" << endl;
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
       for (int k = 0; k < ACCEL_ifm_x_block_num; k++) {
@@ -103,11 +104,13 @@ void InputInit() {
   }
 }
 
-#ifdef MeshTop
-VMeshTop *top = new VMeshTop;
-#else
-VMesh *top = new VMesh;
-#endif
+// #ifdef MeshTop
+// VMeshTop *top = new VMeshTop;
+// #else
+// VMesh *top = new VMesh;
+// #endif
+
+TOPNAME *top = new TOPNAME;
 VerilatedFstC *tfp = new VerilatedFstC;
 
 void change_ifm() {

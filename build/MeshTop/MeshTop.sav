@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri May 12 08:43:44 2023
+[*] Mon May 15 06:26:32 2023
 [*]
 [dumpfile] "/home/jiexxpu/ncnnAccel/MeshSim/build/MeshTop/MeshTop.wave"
-[dumpfile_mtime] "Fri May 12 08:43:20 2023"
-[dumpfile_size] 11335
+[dumpfile_mtime] "Mon May 15 06:24:27 2023"
+[dumpfile_size] 9203
 [savefile] "/home/jiexxpu/ncnnAccel/MeshSim/build/MeshTop/MeshTop.sav"
-[timestart] 25
-[size] 2488 1376
-[pos] -641 -213
-*-1.370838 32 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 17
+[size] 1920 1043
+[pos] 1920 4
+*-4.125389 128 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.MeshTop.
 [treeopen] TOP.MeshTop.acc_mem.
@@ -17,51 +17,44 @@
 [sst_width] 292
 [signals_width] 302
 [sst_expanded] 1
-[sst_vpaned_height] 442
+[sst_vpaned_height] 591
 @28
 TOP.MeshTop.acc_mem.clock
 TOP.MeshTop.io_last_in
-TOP.MeshTop.io_stop
+TOP.MeshTop.io_w_finish
 @200
 -Mesh
+-ofm_0
 @28
-TOP.MeshTop.mesh.io_ifm_valid
-TOP.MeshTop.mesh.io_ifm_ready
-@22
-TOP.MeshTop.mesh.io_ifm_bits_0[31:0]
-@28
-TOP.MeshTop.mesh.io_w_valid
-TOP.MeshTop.mesh.io_w_ready
-@421
-TOP.MeshTop.mesh.io_w_bits_0[31:0]
-@28
-TOP.MeshTop.mesh.io_w_finish
-TOP.MeshTop.mesh.io_last_in
-@200
--PE00
-@28
-TOP.MeshTop.mesh.mesh_0_0.io_ctl_sel
-@22
-TOP.MeshTop.mesh.mesh_0_0.io_in_a[31:0]
-TOP.MeshTop.mesh.mesh_0_0.io_out_a[31:0]
-@24
-TOP.MeshTop.mesh.mesh_0_0.a0[7:0]
-TOP.MeshTop.mesh.mesh_0_0.a1[7:0]
+TOP.MeshTop.mesh.io_ofm_0_valid
+TOP.MeshTop.mesh.io_ofm_0_bits_acc_last
+TOP.MeshTop.mesh.io_ofm_0_bits_addr[1:0]
+@420
+TOP.MeshTop.mesh.io_ofm_0_bits_data0[31:0]
+TOP.MeshTop.mesh.io_ofm_0_bits_data1[31:0]
 @200
 -AccMem
+-accmem0
+@29
+TOP.MeshTop.acc_mem.acc_mem_0.state[1:0]
 @28
+TOP.MeshTop.acc_mem.acc_mem_0.ofm_in_stage
 TOP.MeshTop.acc_mem.io_out_0_valid
-@22
+@420
 TOP.MeshTop.acc_mem.acc_mem_0.io_out_bits_data0[31:0]
+TOP.MeshTop.acc_mem.io_out_0_bits_data1[31:0]
+@200
+-accmem1
 @28
 TOP.MeshTop.acc_mem.io_out_1_valid
-@22
+@420
 TOP.MeshTop.acc_mem.acc_mem_1.io_out_bits_data0[31:0]
-@28
-TOP.MeshTop.acc_mem.io_out_2_valid
-@22
-TOP.MeshTop.acc_mem.acc_mem_2.io_out_bits_data0[31:0]
 @200
--mem 0 0
+-accmem2
+@28
+TOP.MeshTop.acc_mem.acc_mem_2.io_ofm_bits_finish
+TOP.MeshTop.acc_mem.io_out_2_valid
+@420
+TOP.MeshTop.acc_mem.acc_mem_2.io_out_bits_data0[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

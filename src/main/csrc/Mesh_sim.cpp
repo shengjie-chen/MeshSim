@@ -21,6 +21,9 @@ int32_t hw_ofm[ACCEL_ofm_x_block_num][ACCEL_ofm_y_block_num][ACCEL_ifm_x_block_n
 
 // ################ checker ################
 void Outputprint() {
+  cout << "************************************************************************ HW OFM "
+          "************"
+       << endl;
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
       cout << "************ HW RESULT ROW " << j << " COL " << i << " ************" << endl;
@@ -79,11 +82,13 @@ void change_input() {
   if (top->io_w_ready && top->io_w_valid || w_onecol_finish_switch) {
 #ifdef W_SWITCH_BLOCK
     change_w(w_onecol_finish_switch);
+    top->eval();
 #else
     change_w();
 #endif
   }
 
+  // save out
   for (int i = 0; i < MAT_SIZE; i++) {
     if (TOP_OFM_VALID_COL(i)) {
       // save
@@ -154,7 +159,20 @@ int main(int argc, char **argv, char **env) {
   start = clock();
 
   // input init
-  InputInit();
+  int random_before = rand() % 3;
+  switch (random_before) {
+  case 0:
+    printf("w_ifm_sametime\n");
+    break;
+  case 1:
+    printf("ifm_before_2c\n");
+    break;
+  case 2:
+    printf("w_before_2c\n");
+    break;
+  }
+  InputInit_OfmGen();
+  
   top->io_ofmbuf_stop = 0;
   top->io_w_finish = 0;
 
@@ -198,9 +216,17 @@ int main(int argc, char **argv, char **env) {
   }
 
   // data valid
-  // w_ifm_sametime();
-  // ifm_before_2c();
-  w_before_2c();
+  switch (random_before) {
+  case 0:
+    w_ifm_sametime();
+    break;
+  case 1:
+    ifm_before_2c();
+    break;
+  case 2:
+    w_before_2c();
+    break;
+  }
 
   // parse_args
   while (!Verilated::gotFinish() && main_time < sim_time && !sim_finish) {

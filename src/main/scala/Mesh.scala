@@ -3,13 +3,14 @@ import chisel3.stage.ChiselGeneratorAnnotation
 import chisel3.util._
 
 class acc_data extends Bundle with mesh_config {
-  val data0 = UInt(pe_data_w.W)
-  val data1 = UInt(pe_data_w.W)
+  val data0      = UInt(pe_data_w.W)
+  val data1      = UInt(pe_data_w.W)
 }
 
 class ofm_data extends acc_data {
   val addr     = UInt(ofm_buffer_addr_w.W)
   val acc_last = Bool()
+  val finish = Bool()
 }
 
 class Mesh() extends Module with mesh_config {
@@ -161,6 +162,15 @@ class Mesh() extends Module with mesh_config {
   }
   for (c <- 0 until mesh_columns) {
     io.ofm(c).bits.acc_last := ofm_acc_last(mesh_rows + c - 1)
+  }
+
+  // ofm ofm_finish
+  val ofm_finish = RegInit(0.U((mesh_rows * 2).W))
+  when(en) {
+    ofm_finish := ofm_finish ## ifm_finish
+  }
+  for (c <- 0 until mesh_columns) {
+    io.ofm(c).bits.finish := ofm_finish(mesh_rows + c - 1)
   }
 
   // ofm addr

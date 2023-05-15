@@ -1,4 +1,4 @@
-TOPNAME = Mesh
+TOPNAME = MeshTop
 TOPMODULE_GEN = $(TOPNAME)Gen
 # scala src dir
 SCALA_SRC_DIR = ./src/main/scala
@@ -26,7 +26,7 @@ CSRCS_VCD =$(abspath $(shell find $(abspath $(C_SRC_DIR)) -name  "$(TOPNAME)_sim
 # 从config.h中提取mat_size的值
 mat_size=$(shell grep -oP '#define ACCEL_mesh_size \d+' ./src/main/csrc/config.h | grep -oP '\d+')
 set_para:
-	#sed -i "s/#define TOPNAME .*/#define TOPNAME $(TOPNAME)/g" ./src/main/csrc/config.h
+	sed -i "s/#define TOPNAME .*/#define TOPNAME V$(TOPNAME)/g" ./src/main/csrc/config.h
     # 更新config.scala文件中的mesh_size值
 	sed -i "s/val mesh_size = .*/val mesh_size = $(mat_size)/" ./src/main/scala/configs.scala
 
@@ -45,7 +45,7 @@ sim_vcd: clean verilog
 	$(BIN_VCD)
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 
-sim_vcd_no_regen:
+sim_vcd_no_regen: set_para
 	rm -rf $(OBJ_DIR) $(BIN_VCD)
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
@@ -54,7 +54,7 @@ sim_vcd_no_regen:
 	$(BIN_VCD) # > /dev/null
 	gtkwave $(GEN_DIR)/$(TOPNAME).wave $(GEN_DIR)/$(TOPNAME).sav
 
-sim_vcd_no_regen_gtk:
+sim_vcd_no_regen_gtk: set_para
 	rm -rf $(OBJ_DIR) $(BIN_VCD)
 	mkdir -p $(OBJ_DIR)
 	echo $(CSRCS_VCD)
@@ -96,7 +96,19 @@ random_test:
         fi; \
 	done; \
 
-
+gen_random:
+	ACCEL_ifm_w=$$(($$RANDOM % $$(($(mat_size)*2)) + 1)); \
+    ACCEL_ifm_h=$$(($$RANDOM % $$(($(mat_size)*2)) + 1)); \
+    ACCEL_ifm_c=$$(($$RANDOM % 5 + 1)); \
+    ACCEL_ofm_c=$$(($$RANDOM % 5 + 1)); \
+    echo "ACCEL_ifm_w -> $$ACCEL_ifm_w"; \
+    echo "ACCEL_ifm_h -> $$ACCEL_ifm_h"; \
+    echo "ACCEL_ifm_c/$(mat_size) -> $$ACCEL_ifm_c"; \
+    echo "ACCEL_ofm_c/$(mat_size) -> $$ACCEL_ofm_c"; \
+    sed -i "s/^#define ACCEL_ifm_w .*/#define ACCEL_ifm_w $$ACCEL_ifm_w/" ./src/main/csrc/config.h; \
+    sed -i "s/^#define ACCEL_ifm_h .*/#define ACCEL_ifm_h $$ACCEL_ifm_h/" ./src/main/csrc/config.h; \
+    sed -i "s/^#define ACCEL_ifm_c .*/#define ACCEL_ifm_c (ACCEL_mesh_size * $$ACCEL_ifm_c)/" ./src/main/csrc/config.h; \
+    sed -i "s/^#define ACCEL_ofm_c .*/#define ACCEL_ofm_c (ACCEL_mesh_size * $$ACCEL_ofm_c)/" ./src/main/csrc/config.h; \
 
 
 

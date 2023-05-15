@@ -9,15 +9,17 @@
 #include <stdint.h>
 #include <sys/time.h>
 
+#define TOPNAME VMeshTop
+
 // #define u_align(x, n) ((x + n - 1) & -n)
 #define u_align(x, n) (((x - 1) / n + 1) * n)
 
 #define ACCEL_mesh_size 32
 #define MAT_SIZE ACCEL_mesh_size
 
-#define ACCEL_ifm_w 17
-#define ACCEL_ifm_h 125
-#define ACCEL_ifm_c (ACCEL_mesh_size * 9)
+#define ACCEL_ifm_w 51
+#define ACCEL_ifm_h 21
+#define ACCEL_ifm_c (ACCEL_mesh_size * 1)
 
 #define ACCEL_data_max 30
 
@@ -29,7 +31,7 @@
 #define ACCEL_padding_top 0
 #define ACCEL_padding_down ACCEL_padding_top
 
-#define ACCEL_ofm_c (ACCEL_mesh_size * 8)
+#define ACCEL_ofm_c (ACCEL_mesh_size * 7)
 #define ACCEL_ofm_w ((ACCEL_ifm_w - ACCEL_kernel + 2 * ACCEL_padding_left) / ACCEL_stride + 1)
 #define ACCEL_ofm_h ((ACCEL_ifm_h - ACCEL_kernel + 2 * ACCEL_padding_top) / ACCEL_stride + 1)
 

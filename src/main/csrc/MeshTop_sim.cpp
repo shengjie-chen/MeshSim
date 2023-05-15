@@ -22,7 +22,9 @@ int32_t out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 int32_t hw_out[ACCEL_ofm_block_num][MAT_SIZE][MAT_SIZE] = {0};
 
 void gen_out() {
-  cout << "************ GOLD OUT ************" << endl;
+  cout << "************************************************************************ GOLD OUT "
+          "************"
+       << endl;
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ifm_y_block_num; j++) {
       for (int k = 0; k < ACCEL_ifm_x_block_num; k++) {
@@ -38,7 +40,7 @@ void gen_out() {
 #ifdef DEBUG_MODE
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
-      cout << "out[" << i << "][" << j << "]:" << endl;
+      cout << "************ GOLD RESULT ROW " << j << " COL " << i << " ************" << endl;
       MatPrint(out[i * ACCEL_ofm_y_block_num + j]);
     }
   }
@@ -46,8 +48,10 @@ void gen_out() {
   cout << "************ GOLD OUT FINISH ************" << endl;
 }
 // ################ checker ################
-
 void Outputprint() {
+  cout << "************************************************************************ HW OUT "
+          "************"
+       << endl;
   for (int i = 0; i < ACCEL_ofm_x_block_num; i++) {
     for (int j = 0; j < ACCEL_ofm_y_block_num; j++) {
       cout << "************ HW RESULT ROW " << j << " COL " << i << " ************" << endl;
@@ -88,38 +92,46 @@ void change_input() {
       change_ifm();
     }
     ifm_start = 1;
-  } 
+  }
 
   // change w
   if (top->io_w_ready && top->io_w_valid || w_onecol_finish_switch) {
-    // change_w(w_onecol_finish_switch);
-  change_w();
-  // }
+#ifdef W_SWITCH_BLOCK
+    change_w(w_onecol_finish_switch);
+    top->eval();
+#else
+    change_w();
+#endif
+  }
 
+  // save out
   for (int i = 0; i < MAT_SIZE; i++) {
     if (TOP_OUT_VALID_COL(i)) {
+      // save
+
       hw_out[output_index[i] / MAT_SIZE * 2 + 0][output_index[i] % MAT_SIZE][i] =
           TOP_OUT_DATA0_COL(i);
       hw_out[output_index[i] / MAT_SIZE * 2 + 1][output_index[i] % MAT_SIZE][i] =
           TOP_OUT_DATA1_COL(i);
-
 #ifdef DEBUG_MODE
       if (i == MAT_SIZE - 1)
-        printf("output_index[%d]:%d\n", i, output_index[i]);
+        printf("time:%ld, output_index[%d]:%d\n", main_time, i, output_index[i]);
 #endif
       if (output_index[i] != MAT_SIZE * ACCEL_ofm_block_num / 2) {
+      // change printer
+
         output_index[i]++;
       }
     }
   }
 
   if (output_index[MAT_SIZE - 1] == MAT_SIZE * ACCEL_ofm_block_num / 2) {
-    // Outputprint();
+#ifdef DEBUG_MODE
+    Outputprint();
+#endif
     check_out();
     sim_finish = 1;
   }
-
-  update_reg();
 }
 
 void one_clock() {
@@ -141,7 +153,7 @@ void one_clock() {
 }
 
 int main(int argc, char **argv, char **env) {
-  srand((unsigned)time(NULL));
+  // srand((unsigned)time(NULL));
 
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);
@@ -152,9 +164,22 @@ int main(int argc, char **argv, char **env) {
   start = clock();
 
   // input init
-  InputInit();
+  int random_before = rand() % 3;
+  switch (random_before) {
+  case 0:
+    printf("w_ifm_sametime\n");
+    break;
+  case 1:
+    printf("ifm_before_2c\n");
+    break;
+  case 2:
+    printf("w_before_2c\n");
+    break;
+  }
+  InputInit_OfmGen();
   gen_out();
-  top->io_stop = 0;
+
+  top->io_ofmbuf_stop = 0;
   top->io_w_finish = 0;
 
   // reset
@@ -181,8 +206,6 @@ int main(int argc, char **argv, char **env) {
   // prepare data for 5 clock
   n = 5;
   while (n-- > 0) {
-    update_reg();
-
     top->clock = 0;
     top->eval();
 #ifdef EXPORT_VCD
@@ -199,11 +222,17 @@ int main(int argc, char **argv, char **env) {
   }
 
   // data valid
-  top->io_w_valid = 1;
-  top->io_ifm_valid = 1;
-  top->eval();
-  // change_ifm();
-  // change_w();
+  switch (random_before) {
+  case 0:
+    w_ifm_sametime();
+    break;
+  case 1:
+    ifm_before_2c();
+    break;
+  case 2:
+    w_before_2c();
+    break;
+  }
 
   // parse_args
   while (!Verilated::gotFinish() && main_time < sim_time && !sim_finish) {

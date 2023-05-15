@@ -9,9 +9,47 @@ class AccMemUnit extends Module with mesh_config {
     val stop = Input(Bool())
   })
   val mem = Seq.fill(2)(Module(new TPRAM(pe_data_w, mesh_size, "block")))
-  val en  = !io.stop
+  val en  = !(io.stop || ofm_in_stage && !io.ofm.valid)
+
+  lazy val sNone :: sStart :: sProcess :: sEnd :: Nil = Enum(4)
+  lazy val state                                      = RegInit(sNone)
+  val end_read_addr                                   = RegInit(0.U(log2Ceil(mesh_size).W))
+
+  switch(state) {
+    is(sNone) {
+      when(riseEdge(io.ofm.valid)) {
+        state := sStart
+      }
+    }
+    is(sStart) {
+      when(en) {
+        when(io.ofm.bits.finish) {
+          state := sEnd
+        }.elsewhen(io.ofm.bits.addr === (mesh_size - 1).U && en) {
+          state := sProcess
+        }
+      }
+    }
+    is(sProcess) {
+      when(io.ofm.bits.finish && en) {
+        state := sEnd
+      }
+    }
+    is(sEnd) {
+      when(end_read_addr === 0.U && en) {
+        state := sNone
+      }
+    }
+  }
+
+  when(en) {
+    when(io.ofm.bits.finish || state === sEnd && end_read_addr =/= 0.U) {
+      end_read_addr := Mux(end_read_addr === (mesh_size - 1).U, 0.U, end_read_addr + 1.U)
+    }
+  }
+
   // out
-  io.out.valid := ShiftRegister(io.ofm.bits.acc_last, mesh_size, en)
+  io.out.valid := ShiftRegister(io.ofm.bits.acc_last, mesh_size, en) && en && state =/= sNone
   when(io.out.valid) {
     io.out.bits.data0 := mem(0).io.rdata
     io.out.bits.data1 := mem(1).io.rdata
@@ -20,15 +58,10 @@ class AccMemUnit extends Module with mesh_config {
     io.out.bits.data1 := 0.U
   }
 
-  // start stage
-  val start_reg = RegInit(0.B)
-  when(riseEdge(io.ofm.valid)) {
-    start_reg := 1.B
-  }.elsewhen(io.ofm.bits.addr === (mesh_size - 1).U) {
-    start_reg := 0.B
-  }
-  val start_stage = start_reg || riseEdge(io.ofm.valid)
-  val add_zero    = io.out.valid || start_stage
+  // ofm in
+  lazy val ofm_in_stage = state === sStart || state === sProcess || riseEdge(io.ofm.valid)
+
+  val add_zero = state === sStart || riseEdge(io.ofm.valid) && state === sNone || io.out.valid
 
   // READ
   val read_buffer = Wire(Vec(2, UInt(pe_data_w.W)))
@@ -36,9 +69,9 @@ class AccMemUnit extends Module with mesh_config {
     when(io.ofm.valid) {
       mem(i).io.ren   := 1.B
       mem(i).io.raddr := Mux(io.ofm.bits.addr =/= (mesh_size - 1).U, io.ofm.bits.addr + 1.U, 0.U)
-    }.elsewhen(ShiftRegister(io.ofm.bits.acc_last, mesh_size - 1, en)) { // finish stage
+    }.elsewhen(state === sEnd) { // finish stage
       mem(i).io.ren   := 1.B
-      mem(i).io.raddr := ShiftRegister(io.ofm.bits.addr, mesh_size - 1, en)
+      mem(i).io.raddr := end_read_addr
     }.otherwise {
       mem(i).io.ren   := 0.B
       mem(i).io.raddr := 0.U
@@ -76,7 +109,7 @@ class AccMem extends Module with mesh_config {
     val ofm  = Flipped(Vec(mesh_columns, Valid(new ofm_data)))
     val stop = Input(Bool())
 
-    val out  = Vec(mesh_columns, Valid(new acc_data))
+    val out = Vec(mesh_columns, Valid(new acc_data))
   })
 
   val acc_mem = Seq.fill(mesh_columns)(Module(new AccMemUnit))
